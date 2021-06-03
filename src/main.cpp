@@ -1,7 +1,6 @@
-// #include "libfbxsdk.so"
-#include <iostream>
-// #include <libfbxsdk.so>
 #include <fbxsdk.h>
+
+#include <iostream>
 #include <liblava/lava.hpp>
 
 using namespace std;

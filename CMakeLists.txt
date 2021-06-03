@@ -10,6 +10,16 @@ target_sources(
   src/main.cpp
 )
 
-find_library(FBX_LIB fbxsdk REQUIRED)
+if (WIN32)
+  set (FBX_LIB "C:/Program Files/Autodesk/FBX/FBX SDK/2019.0/include")
+  target_include_directories(${PROJECT_NAME} PRIVATE "${FBX_LIB}")
+  #find_library(FBX_LIB fbxsdk REQUIRED)
+  #target_link_libraries(${PROJECT_NAME} PRIVATE "${FBX_LIB}")
+endif (WIN32)
+
+if (LINUX)
+  find_library(FBX_LIB fbxsdk REQUIRED)
+  target_link_libraries(${PROJECT_NAME} PRIVATE "${FBX_LIB}")
+endif (LINUX)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE lava::app)
-target_link_libraries(${PROJECT_NAME} PRIVATE "${FBX_LIB}")
