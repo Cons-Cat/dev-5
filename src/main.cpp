@@ -10,9 +10,23 @@
     std::cout << str << std::endl;                                             \
   }
 
+void traverse_node(FbxNode *node) {
+  FbxNodeAttribute *attribute = node->GetNodeAttribute();
+  switch (attribute->GetAttributeType()) {
+  case FbxNodeAttribute::eMesh:
+    // TODO: Deserialize mest.
+    break;
+  default:
+    break;
+  }
+  for (size_t i = 0; i < node->GetChildCount(); i++) {
+    traverse_node(node->GetChild(i));
+  }
+}
+
 int main(int argc, char *argv[]) {
   // TODO: Initialize the path.
-  std::string path = "file.fbx";
+  std::string path = "../res/Idle.fbx";
   FbxManager *manager = FbxManager::Create();
   FbxIOSettings *io_settings = FbxIOSettings::Create(manager, IOSROOT);
   manager->SetIOSettings(io_settings);
@@ -22,7 +36,8 @@ int main(int argc, char *argv[]) {
           "Failed to import");
   importer->Import(scene);
   importer->Destroy();
-  // // scene->
+  FbxNode *root_node = scene->GetRootNode();
+  traverse_node(root_node);
   std::cout << "Path: " << path;
   return 0;
 }
