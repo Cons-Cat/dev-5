@@ -1,3 +1,6 @@
 [submodule "liblava"]
 	path = liblava
 	url = https://github.com/liblava/liblava.git
+[submodule "FBXSDK-Linux"]
+	path = FBXSDK-Linux
+	url = https://github.com/zellski/FBXSDK-Linux

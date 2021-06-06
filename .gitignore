@@ -1,0 +1,15 @@
+*.cmake
+*.ninja
+*.in
+*.txt
+*.json
+*.log
+*.out
+*.bin
+*.check_cache
+build/Dev
+build/liblava/
+build/CMakeFiles
+build/.cache
+build/.ninja_deps
+build/.ninja_log
