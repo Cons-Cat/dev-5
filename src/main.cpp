@@ -1,37 +1,28 @@
 #include <fbxsdk.h>
+// #include <fbxsdk/fbxsdk_def.h>
 
+// #include <glm/glm.hpp>
 #include <iostream>
 #include <liblava/lava.hpp>
 
-using namespace std;
-
-typedef struct {
-  glm::f32vec3 pos;
-  glm::f32vec4 col;
-  glm::f32vec2 uv;
-  glm::f32vec3 norm;
-} vert;
-
-void read_mesh(FbxMesh &in_mesh) {
-  static size_t const tri_count = in_mesh.GetPolygonCount();
-  std::vector<size_t> triangles;
-  //
-}
+#define success(x, str)                                                        \
+  if (!x) {                                                                    \
+    std::cout << str << std::endl;                                             \
+  }
 
 int main(int argc, char *argv[]) {
+  // TODO: Initialize the path.
+  std::string path = "file.fbx";
   FbxManager *manager = FbxManager::Create();
   FbxIOSettings *io_settings = FbxIOSettings::Create(manager, IOSROOT);
   manager->SetIOSettings(io_settings);
   FbxImporter *importer = FbxImporter::Create(manager, "");
-  const char *filename = "file.fbx";
-  bool import_status =
-      importer->Initialize(filename, -1, manager->GetIOSettings());
-  if (!import_status) {
-    throw "Failed to initialize.";
-  }
-  FbxScene *scene = FbxScene::Create(manager, "scene");
+  FbxScene *scene = FbxScene::Create(manager, "");
+  success(importer->Initialize(path.c_str(), -1, manager->GetIOSettings()),
+          "Failed to import");
   importer->Import(scene);
   importer->Destroy();
-  // scene->
+  // // scene->
+  std::cout << "Path: " << path;
   return 0;
 }
