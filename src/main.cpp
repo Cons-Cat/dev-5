@@ -1,7 +1,5 @@
+#include <cstddef>
 #include <fbxsdk.h>
-// #include <fbxsdk/fbxsdk_def.h>
-
-// #include <glm/glm.hpp>
 #include <iostream>
 #include <liblava/lava.hpp>
 
@@ -9,6 +7,33 @@
   if (!x) {                                                                    \
     std::cout << str << std::endl;                                             \
   }
+
+#define fn auto
+
+fn read_mesh(FbxNode *node)->std::vector<lava::vertex> {
+  std::vector<lava::vertex> verts_output;
+  FbxMesh *mesh = node->GetMesh();
+  FbxSkin *skin = (FbxSkin *)mesh->GetDeformer(0, FbxDeformer::eSkin);
+  size_t tri_count = mesh->GetPolygonCount();
+  FbxVector4 *ctrl_points = mesh->GetControlPoints();
+  for (size_t i = 0; i < tri_count; i++) {
+    for (size_t j = 0; j < 3; j++) {
+      verts_output.push_back(lava::vertex{
+          .position =
+              lava::v3{
+                  static_cast<float>(
+                      ctrl_points[mesh->GetPolygonVertex(i, j)][0]),
+                  static_cast<float>(
+                      ctrl_points[mesh->GetPolygonVertex(i, j)][1]),
+                  static_cast<float>(
+                      ctrl_points[mesh->GetPolygonVertex(i, j)][2]),
+              },
+      });
+      // TODO: Other fields need to be read.
+    }
+  }
+  return verts_output;
+}
 
 void traverse_node(FbxNode *node) {
   FbxNodeAttribute *attribute = node->GetNodeAttribute();
