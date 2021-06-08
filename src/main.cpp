@@ -29,6 +29,7 @@ fn read_mesh(FbxNode *node)->lava::mesh_data {
                   static_cast<float>(
                       ctrl_points[mesh->GetPolygonVertex(i, j)][2]),
               },
+          .uv = lava::v2{0, 100},
           // TODO: Other vertex fields need to be read.
       });
       // TODO: Reading indices.
@@ -80,13 +81,14 @@ int main(int argc, char *argv[]) {
   app.staging.add(default_texture);
   app.camera.position = lava::v3(0.832f, 0.036f, 2.304f);
   app.camera.rotation = lava::v3(8.42f, -29.73f, 0.f);
-  lava::mat4 model_space = glm::identity<lava::mat4>();
+  lava::mat4 model_space = lava::mat4(1.0); // This is an identity matrix.
+  // lava::mat4 model_space = glm::identity<lava::mat4>();
   lava::buffer model_buffer;
-  success(model_buffer.create_mapped(app.device, &model_space,
-                                     sizeof(typeid(model_space)),
+  success(model_buffer.create_mapped(app.device, &model_space, 64,
                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
           "Failed to map buffer.");
   made_mesh->create(app.device);
+  app.camera.reset();
   lava::graphics_pipeline::ptr pipeline;
   lava::pipeline_layout::ptr pipeline_layout;
   lava::descriptor::ptr descriptor_layout;
@@ -166,7 +168,6 @@ int main(int argc, char *argv[]) {
 
     pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
       pipeline_layout->bind(cmd_buf, descriptor_set);
-      success(model_buffer.valid(), "Invalid");
       made_mesh->bind_draw(cmd_buf);
     };
     lava::render_pass::ptr render_pass = app.shading.get_pass();
@@ -174,6 +175,6 @@ int main(int argc, char *argv[]) {
     render_pass->add_front(pipeline);
     return true;
   };
+
   return app.run();
-  return EXIT_SUCCESS;
 }
