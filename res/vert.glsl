@@ -26,5 +26,5 @@ void main() {
     outColor = inColor;
     outUV = inUV;
     gl_Position = ubo_camera.projection // * ubo_camera.view
-        * ubo_model.model * vec4(inPos.x, -inPos.y, inPos.z, 1.0);
+        * ubo_model.model * vec4(inPos.x, -inPos.y, inPos.z-10, 1.0);
 }

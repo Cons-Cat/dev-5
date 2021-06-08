@@ -29,6 +29,7 @@ fn read_mesh(FbxNode *node)->lava::mesh_data {
                   static_cast<float>(
                       ctrl_points[mesh->GetPolygonVertex(i, j)][2]),
               },
+          .color = lava::v4{1, 1, 1, 1},
           .uv = lava::v2{0, 100},
           // TODO: Other vertex fields need to be read.
       });
@@ -73,7 +74,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Path: " << path;
   // Render the mesh.
   lava::app app("DEV 5 - WGooch", {argc, argv});
-  app.setup();
+  success(app.setup(), "Failed to setup app.");
   lava::mesh::ptr made_mesh = lava::make_mesh();
   made_mesh->add_data(loaded_data);
   lava::texture::ptr default_texture =
@@ -84,7 +85,8 @@ int main(int argc, char *argv[]) {
   lava::mat4 model_space = lava::mat4(1.0); // This is an identity matrix.
   // lava::mat4 model_space = glm::identity<lava::mat4>();
   lava::buffer model_buffer;
-  success(model_buffer.create_mapped(app.device, &model_space, 64,
+  success(model_buffer.create_mapped(app.device, &model_space,
+                                     sizeof(float) * 16,
                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
           "Failed to map buffer.");
   made_mesh->create(app.device);
@@ -94,6 +96,7 @@ int main(int argc, char *argv[]) {
   lava::descriptor::ptr descriptor_layout;
   lava::descriptor::pool::ptr descriptor_pool;
   VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
+
   app.on_create = [&]() {
     pipeline = make_graphics_pipeline(app.device);
     success((pipeline->add_shader(lava::file_data("../res/vert.spv"),
@@ -128,9 +131,8 @@ int main(int argc, char *argv[]) {
     success((descriptor_pool->create(
                 app.device,
                 {
-                    // TODO: Swap?
-                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
                     {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2},
+                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
                 })),
             "Failed to create descriptor pool.");
     pipeline_layout = lava::make_pipeline_layout();
@@ -170,9 +172,15 @@ int main(int argc, char *argv[]) {
       pipeline_layout->bind(cmd_buf, descriptor_set);
       made_mesh->bind_draw(cmd_buf);
     };
+
     lava::render_pass::ptr render_pass = app.shading.get_pass();
     success((pipeline->create(render_pass->get())), "Failed to make pipeline.");
     render_pass->add_front(pipeline);
+    return true;
+  };
+
+  app.on_update = [&](lava::delta dt) {
+    app.camera.update_view(dt, app.input.get_mouse_position());
     return true;
   };
 
