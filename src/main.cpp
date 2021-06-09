@@ -11,6 +11,14 @@
 
 #define fn auto
 
+fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2 {
+  auto uv = lava::v2();
+  FbxGeometryElementUV *vertex_uv = mesh->GetElementUV();
+  uv.x = (float)vertex_uv->GetDirectArray().GetAt(texture_uv_index)[0];
+  uv.y = (float)vertex_uv->GetDirectArray().GetAt(texture_uv_index)[1];
+  return uv;
+}
+
 fn read_mesh(FbxNode *node)->lava::mesh_data {
   lava::mesh_data output;
   FbxMesh *mesh = node->GetMesh();
@@ -30,11 +38,9 @@ fn read_mesh(FbxNode *node)->lava::mesh_data {
                       ctrl_points[mesh->GetPolygonVertex(i, j)][2]),
               },
           .color = lava::v4{1, 1, 1, 1},
-          .uv = lava::v2{0, 100},
+          .uv = read_uv(mesh, mesh->GetTextureUVIndex(i, j))
           // TODO: Other vertex fields need to be read.
       });
-      // TODO: Reading indices.
-      // output.indices.push_back(i);
     }
   }
   return output;
