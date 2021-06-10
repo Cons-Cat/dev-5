@@ -1,8 +1,8 @@
 #version 450 core
 
-layout(location = 0) in vec3 inPos;
-layout(location = 1) in vec4 inColor;
-layout(location = 2) in vec2 inUV;
+layout(location = 0) in vec3 in_pos;
+layout(location = 1) in vec4 in_col;
+layout(location = 2) in vec2 in_uv;
 
 layout(binding = 0) uniform Ubo_Camera {
     mat4 projection;
@@ -15,16 +15,16 @@ layout(binding = 1) uniform Ubo_Model {
 }
 ubo_model;
 
-layout(location = 0) out vec4 outColor;
-layout(location = 1) out vec2 outUV;
+layout(location = 0) out vec4 out_col;
+layout(location = 1) out vec2 out_uv;
 
 out gl_PerVertex {
     vec4 gl_Position;
 };
 
 void main() {
-    outColor = inColor;
-    outUV = inUV;
-    gl_Position = ubo_camera.projection // * ubo_camera.view
-        * ubo_model.model * vec4(inPos.x, -inPos.y, inPos.z-10, 1.0);
+    out_col = in_col;
+    out_uv = in_uv;
+    gl_Position = ubo_camera.projection  * ubo_camera.view
+        * ubo_model.model * vec4(in_pos.x, -in_pos.y, in_pos.z, 1.0);
 }

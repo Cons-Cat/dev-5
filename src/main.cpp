@@ -90,8 +90,8 @@ int main(int argc, char *argv[]) {
       // create_default_texture(app.device, {4096, 4096});
       lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_D.png");
   app.staging.add(loaded_texture);
-  app.camera.position = lava::v3(0.832f, 0.036f, 2.304f);
-  app.camera.rotation = lava::v3(8.42f, -29.73f, 0.f);
+  app.camera.position = lava::v3(0.0f, -4.036f, 8.304f);
+  app.camera.rotation = lava::v3(-15, 0, 0);
   lava::mat4 model_space = lava::mat4(1.0); // This is an identity matrix.
   // lava::mat4 model_space = glm::identity<lava::mat4>();
   lava::buffer model_buffer;
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
           "Failed to map buffer.");
   made_mesh->create(app.device);
-  app.camera.reset();
+  // app.camera.reset();
   lava::graphics_pipeline::ptr pipeline;
   lava::pipeline_layout::ptr pipeline_layout;
   lava::descriptor::ptr descriptor_layout;
