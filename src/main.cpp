@@ -91,6 +91,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Path: " << path;
   // Render the mesh.
   lava::app app("DEV 5 - WGooch", {argc, argv});
+  app.config.surface.formats = {VK_FORMAT_B8G8R8A8_SRGB};
   success(app.setup(), "Failed to setup app.");
   lava::mesh::ptr made_mesh = lava::make_mesh();
   made_mesh->add_data(loaded_data);
@@ -108,7 +109,6 @@ int main(int argc, char *argv[]) {
                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
           "Failed to map buffer.");
   made_mesh->create(app.device);
-  // app.camera.reset();
   lava::graphics_pipeline::ptr pipeline;
   lava::pipeline_layout::ptr pipeline_layout;
   lava::descriptor::ptr descriptor_layout;
