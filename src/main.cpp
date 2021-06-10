@@ -27,20 +27,28 @@ fn read_mesh(FbxNode *node)->lava::mesh_data {
   FbxVector4 *ctrl_points = mesh->GetControlPoints();
   for (size_t i = 0; i < tri_count; i++) {
     for (size_t j = 0; j < 3; j++) {
-      output.vertices.push_back(lava::vertex{
-          .position =
-              lava::v3{
-                  static_cast<float>(
-                      ctrl_points[mesh->GetPolygonVertex(i, j)][0]),
-                  static_cast<float>(
-                      ctrl_points[mesh->GetPolygonVertex(i, j)][1]),
-                  static_cast<float>(
-                      ctrl_points[mesh->GetPolygonVertex(i, j)][2]),
-              },
-          .color = lava::v4{1, 1, 1, 1},
-          .uv = read_uv(mesh, mesh->GetTextureUVIndex(i, j))
-          // TODO: Other vertex fields need to be read.
-      });
+      size_t ctrl_index = mesh->GetPolygonVertex(i, j);
+      output.vertices.push_back(
+          lava::vertex{.position =
+                           lava::v3{
+                               static_cast<float>(ctrl_points[ctrl_index][0]),
+                               static_cast<float>(ctrl_points[ctrl_index][1]),
+                               static_cast<float>(ctrl_points[ctrl_index][2]),
+                           },
+                       .color = lava::v4{1, 1, 1, 1},
+                       .uv = read_uv(mesh, mesh->GetTextureUVIndex(i, j)),
+                       .normal = lava::v3{
+                           static_cast<float>(
+                               mesh->GetElementNormal()->GetDirectArray().GetAt(
+                                   ctrl_index)[0]),
+                           static_cast<float>(
+                               mesh->GetElementNormal()->GetDirectArray().GetAt(
+                                   ctrl_index)[1]),
+                           static_cast<float>(
+                               mesh->GetElementNormal()->GetDirectArray().GetAt(
+                                   ctrl_index)[2]),
+                       }});
+      // Mirror UVs.
       output.vertices[output.vertices.size() - 1].uv =
           lava::v2{output.vertices[output.vertices.size() - 1].uv.x,
                    -output.vertices[output.vertices.size() - 1].uv.y};
@@ -127,6 +135,8 @@ int main(int argc, char *argv[]) {
          lava::to_ui32(offsetof(lava::vertex, color))},
         {2, 0, VK_FORMAT_R32G32_SFLOAT,
          lava::to_ui32(offsetof(lava::vertex, uv))},
+        {3, 0, VK_FORMAT_R32G32B32_SFLOAT,
+         lava::to_ui32(offsetof(lava::vertex, normal))},
     });
     descriptor_layout = lava::make_descriptor();
     descriptor_layout->add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
