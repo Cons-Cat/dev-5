@@ -41,6 +41,9 @@ fn read_mesh(FbxNode *node)->lava::mesh_data {
           .uv = read_uv(mesh, mesh->GetTextureUVIndex(i, j))
           // TODO: Other vertex fields need to be read.
       });
+      output.vertices[output.vertices.size() - 1].uv =
+          lava::v2{output.vertices[output.vertices.size() - 1].uv.x,
+                   -output.vertices[output.vertices.size() - 1].uv.y};
     }
   }
   return output;
@@ -83,9 +86,10 @@ int main(int argc, char *argv[]) {
   success(app.setup(), "Failed to setup app.");
   lava::mesh::ptr made_mesh = lava::make_mesh();
   made_mesh->add_data(loaded_data);
-  lava::texture::ptr default_texture =
-      create_default_texture(app.device, {4096, 4096});
-  app.staging.add(default_texture);
+  lava::texture::ptr loaded_texture =
+      // create_default_texture(app.device, {4096, 4096});
+      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_D.png");
+  app.staging.add(loaded_texture);
   app.camera.position = lava::v3(0.832f, 0.036f, 2.304f);
   app.camera.rotation = lava::v3(8.42f, -29.73f, 0.f);
   lava::mat4 model_space = lava::mat4(1.0); // This is an identity matrix.
@@ -169,7 +173,7 @@ int main(int argc, char *argv[]) {
         .dstBinding = 2,
         .descriptorCount = 1,
         .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .pImageInfo = default_texture->get_descriptor_info(),
+        .pImageInfo = loaded_texture->get_descriptor_info(),
     };
     app.device->vkUpdateDescriptorSets(
         {write_desc_ubo_camera, write_desc_ubo_model, write_desc_sampler});
