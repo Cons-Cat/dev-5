@@ -42,3 +42,4 @@ endif(LINUX)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE lava::app)
 target_link_libraries(${PROJECT_NAME} PRIVATE fbxsdk)
+# TODO: This actually isn't linking fbxsdk correctly.
