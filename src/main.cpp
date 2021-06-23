@@ -73,6 +73,45 @@ fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data> {
   return std::nullopt;
 }
 
+typedef struct {
+  // std::unique_ptr<FbxNode> node;
+  FbxNode *node;
+  int parent_index;
+  glm::mat4x4 transform;
+} Joint;
+std::vector<Joint> joints;
+
+typedef struct {
+} Pose;
+
+typedef struct {
+  double time;
+  std::vector<glm::mat4x4> joints;
+} Keyframe;
+
+typedef struct {
+  double duration;
+  std::vector<Keyframe> frames;
+} AnimationClip;
+
+// fn read_pose(FbxNode *node)->FbxPose {}
+
+fn find_fbx_pose(FbxNode *node)->std::optional<Pose> {
+  FbxNodeAttribute *attribute = node->GetNodeAttribute();
+  // if (attribute != nullptr) {
+  //   if (attribute->GetAttributeType() == FbxNodeAttribute::eMesh) {
+  //     return read_pose(node);
+  //   }
+  // }
+  for (size_t i = 0; i < node->GetChildCount(); i++) {
+    auto maybe_pose = find_fbx_pose(node->GetChild(i));
+    if (maybe_pose.has_value()) {
+      return maybe_pose;
+    }
+  }
+  return std::nullopt;
+}
+
 int main(int argc, char *argv[]) {
   // Load and read the mesh from an FBX.
   std::string path = "../res/Idle.fbx";
@@ -89,6 +128,50 @@ int main(int argc, char *argv[]) {
   lava::mesh_data loaded_data = find_fbx_mesh(root_node).value();
   manager->Destroy();
   std::cout << "Path: " << path;
+
+  // Load the keyframes.
+  Keyframe keyframe;
+  auto pose_count = scene->GetPoseCount();
+  std::vector<FbxPose *> poses;
+  FbxPose *bind_pose;
+  for (size_t i = 0; i < pose_count; i++) {
+    auto cur_pose = scene->GetPose(i);
+    poses.push_back(cur_pose);
+    if (cur_pose->IsBindPose()) {
+      bind_pose = cur_pose;
+    }
+  }
+
+  FbxSkeleton *root_joint;
+  auto joint_count = bind_pose->GetCount();
+  for (size_t i = 0; i < joint_count; i++) {
+    auto cur_joint = bind_pose->GetNode(i)->GetSkeleton();
+    if (cur_joint) {
+      if (cur_joint->IsSkeletonRoot()) {
+        root_joint = cur_joint;
+      }
+    }
+  }
+
+  std::vector<Joint *> joints;
+  std::function<void(Joint *, int)> get_joints = [&](Joint *joint, int index) {
+    for (size_t i = 0; i < joint->node->GetChildCount(); i++) {
+      joints.push_back(
+          new Joint{.node = joint->node->GetChild(i),
+                    .parent_index = index,
+                    // This unsafe code might cause errors.
+                    // Both are supposedly column major.
+                    .transform = *reinterpret_cast<glm::mat4x4 *>(
+                        &joint->node->GetChild(i)->EvaluateGlobalTransform())});
+      get_joints(joints[joints.size() - 1], index + i);
+    }
+  };
+  get_joints(new Joint{.node = root_joint->GetNode(),
+                       .parent_index = 0,
+                       .transform = *reinterpret_cast<glm::mat4x4 *>(
+                           &root_joint->GetNode()->EvaluateGlobalTransform())},
+             -1);
+
   // Render the mesh.
   lava::app app("DEV 5 - WGooch", {argc, argv});
   app.config.surface.formats = {VK_FORMAT_B8G8R8A8_SRGB};
