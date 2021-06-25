@@ -79,7 +79,8 @@ typedef struct {
   // std::unique_ptr<FbxNode> node;
   FbxNode *node;
   int parent_index;
-  glm::mat4x4 transform;
+  FbxAMatrix transform;
+  // glm::mat4x4 transform;
 } Joint;
 
 std::vector<Joint> joints;
@@ -91,7 +92,6 @@ typedef struct {
   double time;
   std::vector<glm::mat4x4> joints;
 } Keyframe;
-
 typedef struct {
   double duration;
   std::vector<Keyframe> frames;
@@ -105,9 +105,6 @@ void find_fbx_poses(FbxNode *node, std::vector<FbxPose *> *poses)
       if (node->GetNodeAttribute()->GetAttributeType() ==
           FbxNodeAttribute::eSkeleton) {
         poses->push_back((FbxPose *)node);
-        if (((FbxPose *)node)->IsBindPose()) {
-          std::cout << "NNTSNTSNTSNT" << std::endl;
-        }
       }
     }
   }
@@ -158,55 +155,38 @@ int main(int argc, char *argv[]) {
     }
   }
   success(bind_pose, "Failed to find a bind pose.\n");
-  if (bind_pose) {
-    std::cout << "Using a bind pose.\n";
+
+  // Find skeleton.
+  FbxSkeleton *root_skel = nullptr;
+  for (size_t i = 0; i < bind_pose->GetCount(); i++) {
+    auto cur_skel = bind_pose->GetNode(i)->GetSkeleton();
+    if (cur_skel && cur_skel->IsSkeletonRoot()) {
+      root_skel = cur_skel;
+    }
   }
+  success(root_skel, "Failed to find a root skeleton.");
 
-  // FbxSkeleton *root_joint;
-  // auto joint_count = joints.size();
-  // // auto joint_count = bind_pose->GetCount();
-  // for (size_t i = 0; i < poses.size(); i++) {
-  //   for (size_t j = 0; j < poses[i]->GetCount(); j++) {
-  //     // if (poses[i]->GetNode(j)) {
-  //     auto cur_skel = poses[i]->GetNode(j)->GetSkeleton();
-  //     std::cout << "Looking ... " << std::endl;
-  //     if (cur_skel) {
-  //       std::cout << "Checking skeleton " << i << ", " << j << std::endl;
-  //     }
-  //     // }
-  //   }
-  // }
-
-  std::vector<Joint *> joints_flat;
-  FbxNode *rj = joints[0].node;
+  std::vector<Joint *> joints;
+  auto make_joint = [&](FbxNode *node, int index) -> Joint * {
+    // TODO: Factor into unique ptr.
+    return new Joint{.node = node,
+                     .parent_index = index,
+                     .transform = node->EvaluateGlobalTransform()};
+  };
   std::function<void(Joint *, int)> get_joints = [&](Joint *joint, int index) {
-    // if (joint->node->GetNodeAttribute() &&
-    //     joint->node->GetNodeAttribute()->GetAttributeType() &&
-    //     joint->node->GetNodeAttribute()->GetAttributeType() ==
-    //         FbxNodeAttribute::eSkeleton) {
-    //   rj = joint->node;
-    // }
     for (size_t i = 0; i < joint->node->GetChildCount(); i++) {
-      joints_flat.push_back(
-          new Joint{.node = joint->node->GetChild(i),
-                    .parent_index = index,
-                    // This unsafe code might cause errors.
-                    // Both are supposedly column major.
-                    .transform = *reinterpret_cast<glm::mat4x4 *>(
-                        &joint->node->GetChild(i)->EvaluateGlobalTransform())});
-      get_joints(joints_flat[joints.size() - 1], index + i);
+      auto cur_node = joint->node->GetChild(i);
+      if (cur_node && cur_node->GetNodeAttribute() &&
+          cur_node->GetNodeAttribute()->GetAttributeType() ==
+              FbxNodeAttribute::eSkeleton) {
+        auto new_joint =
+            make_joint(cur_node, index + joint->node->GetChildCount() + i);
+        joints.push_back(new_joint);
+        get_joints(new_joint, index + i);
+      }
     }
   };
-  // auto rj = root_joint->GetNode();
-  get_joints(
-      new Joint{
-          .node = rj,
-          .parent_index = 0,
-          .transform = glm::identity<glm::mat4x4>(),
-          // *reinterpret_cast<glm::mat4x4 *>(
-          //                      &root_joint->GetNode()->EvaluateGlobalTransform())},
-      },
-      -1);
+  get_joints(make_joint(root_skel->GetNode(), -1), -1);
 
   // Render the mesh.
   lava::app app("DEV 5 - WGooch", {argc, argv});
