@@ -19,6 +19,9 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/liblava ${CMAKE_CURRENT_BINARY_DIR}
 target_sources(
   ${PROJECT_NAME} PRIVATE
   src/main.cpp
+  src/includes.h
+  src/fbx_loading.h
+  src/fbx_loading.cpp
 )
 
 if(WIN32)
