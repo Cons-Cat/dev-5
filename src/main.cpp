@@ -11,6 +11,8 @@
 
 #define fn auto
 
+using fbxsdk::FbxNode;
+
 fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2 {
   auto uv = lava::v2();
   FbxGeometryElementUV *vertex_uv = mesh->GetElementUV();
@@ -79,10 +81,11 @@ typedef struct {
   int parent_index;
   glm::mat4x4 transform;
 } Joint;
+
 std::vector<Joint> joints;
 
-typedef struct {
-} Pose;
+// typedef struct {
+// } Pose;
 
 typedef struct {
   double time;
@@ -94,26 +97,29 @@ typedef struct {
   std::vector<Keyframe> frames;
 } AnimationClip;
 
-// fn read_pose(FbxNode *node)->FbxPose {}
-
-fn find_fbx_pose(FbxNode *node)->std::optional<Pose> {
-  FbxNodeAttribute *attribute = node->GetNodeAttribute();
-  // if (attribute != nullptr) {
-  //   if (attribute->GetAttributeType() == FbxNodeAttribute::eMesh) {
-  //     return read_pose(node);
-  //   }
-  // }
-  for (size_t i = 0; i < node->GetChildCount(); i++) {
-    auto maybe_pose = find_fbx_pose(node->GetChild(i));
-    if (maybe_pose.has_value()) {
-      return maybe_pose;
+void find_fbx_poses(FbxNode *node, std::vector<FbxPose *> *poses)
+// ->std::optional<FbxPose *>
+{
+  if (node->GetNodeAttribute()) {
+    if (node->GetNodeAttribute()->GetAttributeType()) {
+      if (node->GetNodeAttribute()->GetAttributeType() ==
+          FbxNodeAttribute::eSkeleton) {
+        poses->push_back((FbxPose *)node);
+        if (((FbxPose *)node)->IsBindPose()) {
+          std::cout << "NNTSNTSNTSNT" << std::endl;
+        }
+      }
     }
   }
-  return std::nullopt;
+  for (size_t i = 0; i < node->GetChildCount(); i++) {
+    FbxNode *child = node->GetChild(i);
+    find_fbx_poses(child, poses);
+  }
 }
 
 int main(int argc, char *argv[]) {
   // Load and read the mesh from an FBX.
+  // std::string path = "../res/Teddy/Teddy_Idle.fbx";
   std::string path = "../res/Idle.fbx";
   FbxManager *manager = FbxManager::Create();
   FbxIOSettings *io_settings = FbxIOSettings::Create(manager, IOSROOT);
@@ -126,51 +132,81 @@ int main(int argc, char *argv[]) {
   importer->Destroy();
   FbxNode *root_node = scene->GetRootNode();
   lava::mesh_data loaded_data = find_fbx_mesh(root_node).value();
-  manager->Destroy();
-  std::cout << "Path: " << path;
+  // manager->Destroy();
+  std::cout << "Path: " << path << std::endl;
 
-  // Load the keyframes.
-  Keyframe keyframe;
-  auto pose_count = scene->GetPoseCount();
+  // Load the skeleton.
+  // Keyframe keyframe;
   std::vector<FbxPose *> poses;
-  FbxPose *bind_pose;
+  // Fill out poses.
+  find_fbx_poses(root_node, &poses);
+  FbxPose *bind_pose = nullptr;
+  std::cout << "Poses: " << poses.size() << std::endl;
+  for (size_t i = 0; i < poses.size(); i++) {
+    if (poses[i]->IsBindPose()) {
+      std::cout << "Found a bind pose.\n";
+      bind_pose = poses[i];
+      break;
+    }
+  }
+  auto pose_count = scene->GetPoseCount();
   for (size_t i = 0; i < pose_count; i++) {
     auto cur_pose = scene->GetPose(i);
-    poses.push_back(cur_pose);
     if (cur_pose->IsBindPose()) {
       bind_pose = cur_pose;
+      break;
     }
   }
-
-  FbxSkeleton *root_joint;
-  auto joint_count = bind_pose->GetCount();
-  for (size_t i = 0; i < joint_count; i++) {
-    auto cur_joint = bind_pose->GetNode(i)->GetSkeleton();
-    if (cur_joint) {
-      if (cur_joint->IsSkeletonRoot()) {
-        root_joint = cur_joint;
-      }
-    }
+  success(bind_pose, "Failed to find a bind pose.\n");
+  if (bind_pose) {
+    std::cout << "Using a bind pose.\n";
   }
 
-  std::vector<Joint *> joints;
+  // FbxSkeleton *root_joint;
+  // auto joint_count = joints.size();
+  // // auto joint_count = bind_pose->GetCount();
+  // for (size_t i = 0; i < poses.size(); i++) {
+  //   for (size_t j = 0; j < poses[i]->GetCount(); j++) {
+  //     // if (poses[i]->GetNode(j)) {
+  //     auto cur_skel = poses[i]->GetNode(j)->GetSkeleton();
+  //     std::cout << "Looking ... " << std::endl;
+  //     if (cur_skel) {
+  //       std::cout << "Checking skeleton " << i << ", " << j << std::endl;
+  //     }
+  //     // }
+  //   }
+  // }
+
+  std::vector<Joint *> joints_flat;
+  FbxNode *rj = joints[0].node;
   std::function<void(Joint *, int)> get_joints = [&](Joint *joint, int index) {
+    // if (joint->node->GetNodeAttribute() &&
+    //     joint->node->GetNodeAttribute()->GetAttributeType() &&
+    //     joint->node->GetNodeAttribute()->GetAttributeType() ==
+    //         FbxNodeAttribute::eSkeleton) {
+    //   rj = joint->node;
+    // }
     for (size_t i = 0; i < joint->node->GetChildCount(); i++) {
-      joints.push_back(
+      joints_flat.push_back(
           new Joint{.node = joint->node->GetChild(i),
                     .parent_index = index,
                     // This unsafe code might cause errors.
                     // Both are supposedly column major.
                     .transform = *reinterpret_cast<glm::mat4x4 *>(
                         &joint->node->GetChild(i)->EvaluateGlobalTransform())});
-      get_joints(joints[joints.size() - 1], index + i);
+      get_joints(joints_flat[joints.size() - 1], index + i);
     }
   };
-  get_joints(new Joint{.node = root_joint->GetNode(),
-                       .parent_index = 0,
-                       .transform = *reinterpret_cast<glm::mat4x4 *>(
-                           &root_joint->GetNode()->EvaluateGlobalTransform())},
-             -1);
+  // auto rj = root_joint->GetNode();
+  get_joints(
+      new Joint{
+          .node = rj,
+          .parent_index = 0,
+          .transform = glm::identity<glm::mat4x4>(),
+          // *reinterpret_cast<glm::mat4x4 *>(
+          //                      &root_joint->GetNode()->EvaluateGlobalTransform())},
+      },
+      -1);
 
   // Render the mesh.
   lava::app app("DEV 5 - WGooch", {argc, argv});
