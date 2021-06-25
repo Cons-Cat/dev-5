@@ -13,6 +13,9 @@
 
 using fbxsdk::FbxNode;
 
+enum RenderMode { mesh, skeleton };
+RenderMode render_mode = mesh;
+
 fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2 {
   auto uv = lava::v2();
   FbxGeometryElementUV *vertex_uv = mesh->GetElementUV();
@@ -287,11 +290,6 @@ int main(int argc, char *argv[]) {
     app.device->vkUpdateDescriptorSets(
         {write_desc_ubo_camera, write_desc_ubo_model, write_desc_sampler});
 
-    pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
-      pipeline_layout->bind(cmd_buf, descriptor_set);
-      made_mesh->bind_draw(cmd_buf);
-    };
-
     lava::render_pass::ptr render_pass = app.shading.get_pass();
     success((pipeline->create(render_pass->get())), "Failed to make pipeline.");
     render_pass->add_front(pipeline);
@@ -299,9 +297,34 @@ int main(int argc, char *argv[]) {
   };
 
   app.on_update = [&](lava::delta dt) {
+    // Command buffers
+    if (render_mode == mesh) {
+      pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
+        pipeline_layout->bind(cmd_buf, descriptor_set);
+        made_mesh->bind_draw(cmd_buf);
+      };
+    } else if (render_mode == skeleton) {
+      pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
+        // pipeline_layout->bind(cmd_buf, descriptor_set);
+        // made_mesh->bind_draw(cmd_buf);
+      };
+    }
     app.camera.update_view(dt, app.input.get_mouse_position());
     return true;
   };
+
+  app.input.key.listeners.add([&](lava::key_event::ref event) {
+    if (event.pressed(lava::key::_1)) {
+      std::cout << "Rendering the mesh." << std::endl;
+      render_mode = mesh;
+      return true;
+    } else if (event.pressed(lava::key::_2)) {
+      std::cout << "Rendering the skeleton." << std::endl;
+      render_mode = skeleton;
+      return true;
+    }
+    return false;
+  });
 
   return app.run();
 }
