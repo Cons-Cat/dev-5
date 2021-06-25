@@ -274,9 +274,32 @@ int main(int argc, char *argv[]) {
   // Bones
   lava::buffer bones_buffer;
   // Hard coded 30 should be larger than the number of bones.
-  std::array<std::array<glm::mat4x4, 3>, 30> bones_data;
-  success(model_buffer.create_mapped(app.device, &bones_data,
-                                     sizeof(float) * 16 * 3 * joints.size(),
+  auto bones_data = new std::array<glm::mat4x4, 3>[joints.size()];
+  for (size_t i = 0; i < joints.size(); i++) {
+    Joint *cur_joint = joints[i];
+    Joint *par_joint = joints[cur_joint->parent_index];
+    FbxVector4 cur_origin = joints[i]->transform.GetRow(3);
+    FbxVector4 par_origin = par_joint->transform.GetRow(3);
+    auto diff = par_origin - cur_origin;
+    auto norm = FbxVector4(-diff[1], diff[0], diff[2], 1.0);
+    auto cur_mat_one = glm::identity<glm::dmat4x4>();
+    auto cur_mat_two = glm::identity<glm::dmat4x4>();
+    auto cur_mat_three = glm::identity<glm::dmat4x4>();
+    auto cur_vec_one = (cur_origin + norm);
+    auto cur_vec_two = cur_origin - norm;
+    auto cur_vec_three = cur_origin + diff;
+    // FBX Matrices are column-major double-floating precision.
+    cur_mat_one[3] =
+        static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec_one));
+    cur_mat_two[3] =
+        static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec_two));
+    cur_mat_three[3] =
+        static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec_three));
+    bones_data[i] =
+        std::array<glm::mat4x4, 3>{cur_mat_one, cur_mat_two, cur_mat_three};
+  }
+  success(bones_buffer.create_mapped(app.device, &bones_data,
+                                     sizeof(glm::mat4x4) * 3 * joints.size(),
                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
           "Failed to map bones buffer.");
 
