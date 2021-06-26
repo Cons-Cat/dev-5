@@ -9,7 +9,13 @@
 using fbxsdk::FbxNode;
 
 enum RenderMode { mesh, skeleton };
-RenderMode render_mode = mesh;
+static RenderMode render_mode;
+
+VkWriteDescriptorSet write_desc_ubo_camera_mesh;
+VkWriteDescriptorSet write_desc_ubo_model_mesh;
+VkWriteDescriptorSet write_desc_sampler_mesh;
+VkWriteDescriptorSet write_desc_ubo_camera_bone;
+VkWriteDescriptorSet write_desc_ubo_model_bone;
 
 fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
                       lava::descriptor::ptr &descriptor_layout,
@@ -49,13 +55,9 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
                                  VK_SHADER_STAGE_FRAGMENT_BIT);
   success((descriptor_layout->create(app.device)),
           "Failed to create descriptor layout.");
-  descriptor_pool = lava::make_descriptor_pool();
   success((descriptor_pool->create(
-              app.device,
-              {
-                  {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2},
-                  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
-              })),
+              app.device, {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2},
+                           {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}})),
           "Failed to create descriptor pool.");
   pipeline_layout = lava::make_pipeline_layout();
   pipeline_layout->add(descriptor_layout);
@@ -63,7 +65,7 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
           "Failed to create pipeline layout.");
   pipeline->set_layout(pipeline_layout);
   descriptor_set = descriptor_layout->allocate(descriptor_pool->get());
-  VkWriteDescriptorSet const write_desc_ubo_camera{
+  write_desc_ubo_camera_mesh = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 0,
@@ -71,7 +73,7 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = app.camera.get_descriptor_info(),
   };
-  VkWriteDescriptorSet const write_desc_ubo_model{
+  write_desc_ubo_model_mesh = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 1,
@@ -79,7 +81,7 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = model_buffer.get_descriptor_info(),
   };
-  VkWriteDescriptorSet const write_desc_sampler{
+  write_desc_sampler_mesh = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 2,
@@ -87,8 +89,9 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       .pImageInfo = loaded_texture->get_descriptor_info(),
   };
-  app.device->vkUpdateDescriptorSets(
-      {write_desc_ubo_camera, write_desc_ubo_model, write_desc_sampler});
+  app.device->vkUpdateDescriptorSets({write_desc_ubo_camera_mesh,
+                                      write_desc_ubo_model_mesh,
+                                      write_desc_sampler_mesh});
   lava::render_pass::ptr render_pass = app.shading.get_pass();
   success((pipeline->create(render_pass->get())), "Failed to make pipeline.");
   render_pass->add_front(pipeline);
@@ -101,7 +104,7 @@ fn make_bone_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
                       VkDescriptorSet &descriptor_set,
                       lava::buffer &model_buffer) {
   pipeline = make_graphics_pipeline(app.device);
-  success((pipeline->add_shader(lava::file_data("../res/vert.spv"),
+  success((pipeline->add_shader(lava::file_data("../res/line_vert.spv"),
                                 VK_SHADER_STAGE_VERTEX_BIT)),
           "Failed to load vertex shader.");
   success((pipeline->add_shader(lava::file_data("../res/line_frag.spv"),
@@ -115,29 +118,22 @@ fn make_bone_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
   pipeline->set_vertex_input_attributes({
       {0, 0, VK_FORMAT_R32G32B32_SFLOAT,
        lava::to_ui32(offsetof(lava::vertex, position))},
-      {1, 0, VK_FORMAT_R32G32B32A32_SFLOAT,
-       lava::to_ui32(offsetof(lava::vertex, color))},
-      {2, 0, VK_FORMAT_R32G32_SFLOAT,
-       lava::to_ui32(offsetof(lava::vertex, uv))},
-      {3, 0, VK_FORMAT_R32G32B32_SFLOAT,
-       lava::to_ui32(offsetof(lava::vertex, normal))},
+      // {1, 0, VK_FORMAT_R32G32B32A32_SFLOAT,
+      //  lava::to_ui32(offsetof(lava::vertex, color))},
+      // {2, 0, VK_FORMAT_R32G32_SFLOAT,
+      //  lava::to_ui32(offsetof(lava::vertex, uv))},
+      // {3, 0, VK_FORMAT_R32G32B32_SFLOAT,
+      //  lava::to_ui32(offsetof(lava::vertex, normal))},
   });
   descriptor_layout = lava::make_descriptor();
   descriptor_layout->add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                  VK_SHADER_STAGE_VERTEX_BIT);
   descriptor_layout->add_binding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                                  VK_SHADER_STAGE_VERTEX_BIT);
-  descriptor_layout->add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                 VK_SHADER_STAGE_FRAGMENT_BIT);
   success((descriptor_layout->create(app.device)),
           "Failed to create descriptor layout.");
-  descriptor_pool = lava::make_descriptor_pool();
-  success((descriptor_pool->create(
-              app.device,
-              {
-                  {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2},
-                  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
-              })),
+  success((descriptor_pool->create(app.device,
+                                   {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2}})),
           "Failed to create descriptor pool.");
   pipeline_layout = lava::make_pipeline_layout();
   pipeline_layout->add(descriptor_layout);
@@ -145,7 +141,7 @@ fn make_bone_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
           "Failed to create pipeline layout.");
   pipeline->set_layout(pipeline_layout);
   descriptor_set = descriptor_layout->allocate(descriptor_pool->get());
-  VkWriteDescriptorSet const write_desc_ubo_camera{
+  write_desc_ubo_camera_bone = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 0,
@@ -153,7 +149,7 @@ fn make_bone_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = app.camera.get_descriptor_info(),
   };
-  VkWriteDescriptorSet const write_desc_ubo_model{
+  write_desc_ubo_model_bone = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 1,
@@ -162,7 +158,7 @@ fn make_bone_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .pBufferInfo = model_buffer.get_descriptor_info(),
   };
   app.device->vkUpdateDescriptorSets(
-      {write_desc_ubo_camera, write_desc_ubo_model});
+      {write_desc_ubo_camera_bone, write_desc_ubo_model_bone});
   lava::render_pass::ptr render_pass = app.shading.get_pass();
   success((pipeline->create(render_pass->get())), "Failed to make pipeline.");
   render_pass->add_front(pipeline);
@@ -257,22 +253,25 @@ int main(int argc, char *argv[]) {
   lava::mat4 model_space = lava::mat4(1.0); // This is an identity matrix.
   // lava::mat4 model_space = glm::identity<lava::mat4>();
 
+  lava::descriptor::pool::ptr descriptor_pool;
+  descriptor_pool = lava::make_descriptor_pool();
+
   // Mesh
   lava::buffer model_buffer;
   success(model_buffer.create_mapped(app.device, &model_space,
                                      sizeof(float) * 16,
                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
           "Failed to map mesh buffer.");
-
   made_mesh->create(app.device);
+
   lava::graphics_pipeline::ptr mesh_pipeline;
-  lava::descriptor::pool::ptr mesh_descriptor_pool;
   lava::descriptor::ptr mesh_descriptor_layout;
   lava::pipeline_layout::ptr mesh_pipeline_layout;
   VkDescriptorSet mesh_descriptor_set = VK_NULL_HANDLE;
 
   // Bones
   lava::buffer bones_buffer;
+  auto bone_meshes = new lava::mesh::ptr[joints.size()];
   // Hard coded 30 should be larger than the number of bones.
   auto bones_data = new std::array<glm::mat4x4, 3>[joints.size()];
   for (size_t i = 0; i < joints.size(); i++) {
@@ -297,27 +296,43 @@ int main(int argc, char *argv[]) {
         static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec_three));
     bones_data[i] =
         std::array<glm::mat4x4, 3>{cur_mat_one, cur_mat_two, cur_mat_three};
+    lava::mesh_data cur_bone_mesh_data;
+    cur_bone_mesh_data.vertices.push_back(
+        lava::vertex{.position = glm::vec3(static_cast<glm::vec4>(
+                         *reinterpret_cast<glm::dvec4 *>(&cur_vec_one)))});
+    cur_bone_mesh_data.vertices.push_back(
+        lava::vertex{.position = glm::vec3(static_cast<glm::vec4>(
+                         *reinterpret_cast<glm::dvec4 *>(&cur_vec_two)))});
+    cur_bone_mesh_data.vertices.push_back(
+        lava::vertex{.position = glm::vec3(static_cast<glm::vec4>(
+                         *reinterpret_cast<glm::dvec4 *>(&cur_vec_three)))});
+    bone_meshes[i] = lava::make_mesh();
+    bone_meshes[i]->add_data(cur_bone_mesh_data);
+    bone_meshes[i]->create(app.device);
   }
   success(bones_buffer.create_mapped(app.device, &bones_data,
-                                     sizeof(glm::mat4x4) * 3 * joints.size(),
+                                     sizeof(glm::vec3) * 3 * joints.size(),
                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
           "Failed to map bones buffer.");
 
-  made_mesh->create(app.device);
   lava::graphics_pipeline::ptr bone_pipeline;
-  lava::descriptor::pool::ptr bone_descriptor_pool;
+  // lava::descriptor::pool::ptr bone_descriptor_pool;
   lava::descriptor::ptr bone_descriptor_layout;
   lava::pipeline_layout::ptr bone_pipeline_layout;
   VkDescriptorSet bone_descriptor_set = VK_NULL_HANDLE;
 
   app.on_create = [&]() {
     make_mesh_pipeline(app, mesh_pipeline, mesh_descriptor_layout,
-                       mesh_descriptor_pool, mesh_pipeline_layout,
+                       descriptor_pool, mesh_pipeline_layout,
                        mesh_descriptor_set, model_buffer, loaded_texture);
 
     make_bone_pipeline(app, bone_pipeline, bone_descriptor_layout,
-                       bone_descriptor_pool, bone_pipeline_layout,
-                       bone_descriptor_set, bones_buffer);
+                       descriptor_pool, bone_pipeline_layout,
+                       bone_descriptor_set, model_buffer);
+
+    // Start by rendering the mesh.
+    render_mode = mesh;
+    // TODO: Move back into make_mesh_pipeline()
 
     return true;
   };
@@ -330,9 +345,12 @@ int main(int argc, char *argv[]) {
         made_mesh->bind_draw(cmd_buf);
       };
     } else if (render_mode == skeleton) {
-      mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
-        // pipeline_layout->bind(cmd_buf, descriptor_set);
-        // made_mesh->bind_draw(cmd_buf);
+      bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
+        bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set);
+        // int i = 0;
+        for (size_t i = 0; i < joints.size(); i++) {
+          bone_meshes[i]->bind_draw(cmd_buf);
+        }
       };
     }
     app.camera.update_view(dt, app.input.get_mouse_position());
