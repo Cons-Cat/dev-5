@@ -13,14 +13,11 @@ typedef struct {
   FbxNode *node;
   int parent_index;
   FbxAMatrix transform;
-  // glm::mat4x4 transform;
 } Joint;
-
-// std::vector<Joint> joints;
 
 typedef struct {
   double time;
-  std::vector<glm::mat4x4> joints;
+  std::vector<Joint *> joints;
 } Keyframe;
 
 typedef struct {

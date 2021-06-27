@@ -9,7 +9,8 @@
 using fbxsdk::FbxNode;
 
 enum RenderMode { mesh, skeleton };
-static RenderMode render_mode;
+static RenderMode render_mode; // Initialized in main()
+static std::vector<AnimationClip> anim_clips;
 
 VkWriteDescriptorSet write_desc_ubo_camera_mesh;
 VkWriteDescriptorSet write_desc_ubo_model_mesh;
@@ -225,8 +226,6 @@ int main(int argc, char *argv[]) {
   };
   std::function<void(Joint *, int, size_t)> get_joints =
       [&](Joint *parent_joint, int parent_index, size_t parent_breadth) {
-        static size_t joint_indices = -1;
-        static size_t depth = -1;
         size_t children = parent_joint->node->GetChildCount();
         for (size_t i = 0; i < children; i++) {
           auto cur_node = parent_joint->node->GetChild(i);
@@ -314,6 +313,28 @@ int main(int argc, char *argv[]) {
                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
           "Failed to map bones buffer.");
 
+  // Load keyframe.
+  FbxAnimStack *anim_stack = scene->GetCurrentAnimationStack();
+  FbxTimeSpan time_span = anim_stack->GetLocalTimeSpan();
+  FbxTime real_time = time_span.GetDuration();
+  AnimationClip anim_clip{};
+  auto fps = FbxTime::EMode::eFrames24;
+  anim_clip.duration = real_time.GetFrameCount(fps);
+  for (double i = 1; i < anim_clip.duration; i++) {
+    // std::cout << "Frame update." << std::endl;
+    Keyframe cur_keyframe;
+    real_time.SetFrame(i, fps);
+    cur_keyframe.time = i;
+    for (auto joint : joints) {
+      cur_keyframe.joints.push_back(new Joint{
+          .node = joint->node,
+          .parent_index = joint->parent_index,
+          .transform = joint->node->EvaluateGlobalTransform(real_time)});
+    }
+    anim_clip.frames.push_back(cur_keyframe);
+  }
+
+  // Put meshes in GPU.
   lava::graphics_pipeline::ptr bone_pipeline;
   // lava::descriptor::pool::ptr bone_descriptor_pool;
   lava::descriptor::ptr bone_descriptor_layout;
