@@ -235,15 +235,9 @@ int main(int argc, char *argv[]) {
                   FbxNodeAttribute::eSkeleton) {
             auto new_joint = make_joint(cur_node, parent_index);
             joints.push_back(new_joint);
-            get_joints(new_joint, joints.size() - 1, // joint_indices
-                       children);
+            get_joints(new_joint, joints.size() - 1, children);
           }
         }
-        depth++;
-        // for (size_t i = 0; i < children; i++) {
-        //   joint_indices++;
-        //   get_joints(joints[depth + children - i], joint_indices, children);
-        // }
       };
   get_joints(make_joint(root_skel->GetNode(), -1), 0, 0);
 
@@ -260,12 +254,11 @@ int main(int argc, char *argv[]) {
   app.camera.position = lava::v3(0.0f, -4.036f, 8.304f);
   app.camera.rotation = lava::v3(-15, 0, 0);
   lava::mat4 model_space = lava::mat4(1.0); // This is an identity matrix.
-  // lava::mat4 model_space = glm::identity<lava::mat4>();
 
   lava::descriptor::pool::ptr descriptor_pool;
   descriptor_pool = lava::make_descriptor_pool();
 
-  // Mesh
+  // Load mesh.
   lava::buffer model_buffer;
   success(model_buffer.create_mapped(app.device, &model_space,
                                      sizeof(float) * 16,
@@ -307,14 +300,11 @@ int main(int argc, char *argv[]) {
         std::array<glm::mat4x4, 3>{cur_mat_one, cur_mat_two, cur_mat_three};
     lava::mesh_data cur_bone_mesh_data;
     cur_bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = glm::vec3(static_cast<glm::vec4>(
-                         *reinterpret_cast<glm::dvec4 *>(&cur_vec_one)))});
+        lava::vertex{.position = fbxvec_to_glmvec(cur_vec_one)});
     cur_bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = glm::vec3(static_cast<glm::vec4>(
-                         *reinterpret_cast<glm::dvec4 *>(&cur_vec_two)))});
+        lava::vertex{.position = fbxvec_to_glmvec(cur_vec_two)});
     cur_bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = glm::vec3(static_cast<glm::vec4>(
-                         *reinterpret_cast<glm::dvec4 *>(&cur_vec_three)))});
+        lava::vertex{.position = fbxvec_to_glmvec(cur_vec_three)});
     bone_meshes[i] = lava::make_mesh();
     bone_meshes[i]->add_data(cur_bone_mesh_data);
     bone_meshes[i]->create(app.device);

@@ -80,3 +80,7 @@ void find_fbx_poses(FbxNode *node, std::vector<FbxPose *> *poses)
     find_fbx_poses(child, poses);
   }
 }
+
+fn fbxvec_to_glmvec(FbxVector4 vec)->glm::vec3 {
+  glm::vec3(static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&vec)));
+}
