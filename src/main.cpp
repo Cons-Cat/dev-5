@@ -223,20 +223,29 @@ int main(int argc, char *argv[]) {
                      .parent_index = index,
                      .transform = node->EvaluateGlobalTransform()};
   };
-  std::function<void(Joint *, int)> get_joints = [&](Joint *joint, int index) {
-    for (size_t i = 0; i < joint->node->GetChildCount(); i++) {
-      auto cur_node = joint->node->GetChild(i);
-      if (cur_node && cur_node->GetNodeAttribute() &&
-          cur_node->GetNodeAttribute()->GetAttributeType() ==
-              FbxNodeAttribute::eSkeleton) {
-        auto new_joint =
-            make_joint(cur_node, index + joint->node->GetChildCount() + i);
-        joints.push_back(new_joint);
-        get_joints(new_joint, index + i);
-      }
-    }
-  };
-  get_joints(make_joint(root_skel->GetNode(), -1), -1);
+  std::function<void(Joint *, int, size_t)> get_joints =
+      [&](Joint *parent_joint, int parent_index, size_t parent_breadth) {
+        static size_t joint_indices = -1;
+        static size_t depth = -1;
+        size_t children = parent_joint->node->GetChildCount();
+        for (size_t i = 0; i < children; i++) {
+          auto cur_node = parent_joint->node->GetChild(i);
+          if (cur_node && cur_node->GetNodeAttribute() &&
+              cur_node->GetNodeAttribute()->GetAttributeType() ==
+                  FbxNodeAttribute::eSkeleton) {
+            auto new_joint = make_joint(cur_node, parent_index);
+            joints.push_back(new_joint);
+            get_joints(new_joint, joints.size() - 1, // joint_indices
+                       children);
+          }
+        }
+        depth++;
+        // for (size_t i = 0; i < children; i++) {
+        //   joint_indices++;
+        //   get_joints(joints[depth + children - i], joint_indices, children);
+        // }
+      };
+  get_joints(make_joint(root_skel->GetNode(), -1), 0, 0);
 
   // Render the mesh.
   lava::app app("DEV 5 - WGooch", {argc, argv});
@@ -280,7 +289,7 @@ int main(int argc, char *argv[]) {
     FbxVector4 cur_origin = joints[i]->transform.GetRow(3);
     FbxVector4 par_origin = par_joint->transform.GetRow(3);
     auto diff = par_origin - cur_origin;
-    auto norm = FbxVector4(-diff[1], diff[0], diff[2], 1.0);
+    auto norm = FbxVector4(-diff[1], diff[0], diff[2], 0) / 15;
     auto cur_mat_one = glm::identity<glm::dmat4x4>();
     auto cur_mat_two = glm::identity<glm::dmat4x4>();
     auto cur_mat_three = glm::identity<glm::dmat4x4>();
@@ -331,7 +340,7 @@ int main(int argc, char *argv[]) {
                        bone_descriptor_set, model_buffer);
 
     // Start by rendering the mesh.
-    render_mode = mesh;
+    render_mode = skeleton;
     // TODO: Move back into make_mesh_pipeline()
 
     return true;
