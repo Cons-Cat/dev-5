@@ -2,6 +2,23 @@
 
 using fbxsdk::FbxNode;
 
+struct Joint_t {
+  // std::unique_ptr<FbxNode> node;
+  FbxNode *node;
+  int parent_index;
+  FbxAMatrix transform;
+};
+
+struct Keyframe_ {
+  double time;
+  std::vector<Joint *> joints;
+};
+
+struct AniClip_t {
+  double duration;
+  std::vector<Keyframe> frames;
+};
+
 fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2 {
   auto uv = lava::v2();
   FbxGeometryElementUV *vertex_uv = mesh->GetElementUV();

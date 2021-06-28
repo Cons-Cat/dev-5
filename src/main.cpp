@@ -1,3 +1,4 @@
+#include "bones.h"
 #include "fbx_loading.h"
 #include "includes.h"
 #include <cstddef>
@@ -217,7 +218,10 @@ int main(int argc, char *argv[]) {
   }
   success(root_skel, "Failed to find a root skeleton.");
 
+  // Bones
+  lava::buffer bones_buffer;
   std::vector<Joint *> joints;
+  make_bones_mesh(app, joints, bones_buffer);
   auto make_joint = [&](FbxNode *node, int index) -> Joint * {
     // TODO: Factor into unique ptr.
     return new Joint{.node = node,
@@ -272,46 +276,8 @@ int main(int argc, char *argv[]) {
 
   // Bones
   lava::buffer bones_buffer;
-  auto bone_meshes = new lava::mesh::ptr[joints.size()];
-  // Hard coded 30 should be larger than the number of bones.
-  auto bones_data = new std::array<glm::mat4x4, 3>[joints.size()];
-  for (size_t i = 0; i < joints.size(); i++) {
-    Joint *cur_joint = joints[i];
-    Joint *par_joint = joints[cur_joint->parent_index];
-    FbxVector4 cur_origin = joints[i]->transform.GetRow(3);
-    FbxVector4 par_origin = par_joint->transform.GetRow(3);
-    auto diff = par_origin - cur_origin;
-    auto norm = FbxVector4(-diff[1], diff[0], diff[2], 0) / 15;
-    auto cur_mat_one = glm::identity<glm::dmat4x4>();
-    auto cur_mat_two = glm::identity<glm::dmat4x4>();
-    auto cur_mat_three = glm::identity<glm::dmat4x4>();
-    auto cur_vec_one = (cur_origin + norm);
-    auto cur_vec_two = cur_origin - norm;
-    auto cur_vec_three = cur_origin + diff;
-    // FBX Matrices are column-major double-floating precision.
-    cur_mat_one[3] =
-        static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec_one));
-    cur_mat_two[3] =
-        static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec_two));
-    cur_mat_three[3] =
-        static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec_three));
-    bones_data[i] =
-        std::array<glm::mat4x4, 3>{cur_mat_one, cur_mat_two, cur_mat_three};
-    lava::mesh_data cur_bone_mesh_data;
-    cur_bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(cur_vec_one)});
-    cur_bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(cur_vec_two)});
-    cur_bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(cur_vec_three)});
-    bone_meshes[i] = lava::make_mesh();
-    bone_meshes[i]->add_data(cur_bone_mesh_data);
-    bone_meshes[i]->create(app.device);
-  }
-  success(bones_buffer.create_mapped(app.device, &bones_data,
-                                     sizeof(glm::vec3) * 3 * joints.size(),
-                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-          "Failed to map bones buffer.");
+  // auto bone_meshes = new lava::mesh::ptr[joints.size()];
+  auto bone_meshs = make_bones_mesh(app, joints, bones_buffer);
 
   // Load keyframe.
   FbxAnimStack *anim_stack = scene->GetCurrentAnimationStack();
