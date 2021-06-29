@@ -357,8 +357,21 @@ int main(int argc, char *argv[]) {
     return true;
   };
 
+  app.input.key.listeners.add([&](lava::key_event::ref event) {
+    if (event.pressed(lava::key::_1)) {
+      render_mode = mesh;
+      return true;
+    } else if (event.pressed(lava::key::_2)) {
+      render_mode = skeleton;
+      return true;
+    }
+    return false;
+  });
+
   app.on_update = [&](lava::delta dt) {
     // Command buffers
+    mesh_pipeline->on_process = nullptr;
+    bone_pipeline->on_process = nullptr;
     if (render_mode == mesh) {
       mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
         mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
@@ -376,19 +389,6 @@ int main(int argc, char *argv[]) {
     app.camera.update_view(dt, app.input.get_mouse_position());
     return true;
   };
-
-  app.input.key.listeners.add([&](lava::key_event::ref event) {
-    if (event.pressed(lava::key::_1)) {
-      std::cout << "Rendering the mesh." << std::endl;
-      render_mode = mesh;
-      return true;
-    } else if (event.pressed(lava::key::_2)) {
-      std::cout << "Rendering the skeleton." << std::endl;
-      render_mode = skeleton;
-      return true;
-    }
-    return false;
-  });
 
   return app.run();
 }
