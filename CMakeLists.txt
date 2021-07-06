@@ -37,13 +37,14 @@ if(WIN32)
 
 endif(WIN32)
 
+if(UNIX AND NOT APPLE)
+  set(LINUX TRUE)
+endif()
+
 if(LINUX)
-  # find_library(FBX_LIB fbxsdk REQUIRED)
-  set(FBX_LIB "${CMAKE_CURRENT_SOURCE_DIR}/FBXSDK-Linux/sdk/Linux/2019.2/")
-  target_include_directories(${PROJECT_NAME} PRIVATE "${FBX_LIB}/include/")
-  target_link_libraries(${PROJECT_NAME} PRIVATE "${FBX_LIB}/lib/gcc/x86/debug/libfbxsdk.so")
+  set(FBX_LIB "${CMAKE_CURRENT_SOURCE_DIR}/fbxsdk")
+  target_include_directories(${PROJECT_NAME} PUBLIC "${FBX_LIB}/include" REQUIRED)
+  target_link_libraries(${PROJECT_NAME} PUBLIC "${FBX_LIB}/lib/gcc/x64/debug/libfbxsdk.a")
 endif(LINUX)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE lava::app)
-target_link_libraries(${PROJECT_NAME} PRIVATE fbxsdk)
-# TODO: This actually isn't linking fbxsdk correctly.
