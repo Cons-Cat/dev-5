@@ -1,15 +1,17 @@
-#include "fbx_loading.h"
-#include "includes.h"
-#include <cstddef>
 #include <fbxsdk.h>
+
+#include <cstddef>
 #include <iostream>
 #include <liblava/lava.hpp>
 #include <typeinfo>
 
+#include "fbx_loading.h"
+#include "includes.h"
+
 using fbxsdk::FbxNode;
 
 enum RenderMode { mesh, skeleton };
-static RenderMode render_mode; // Initialized in main()
+static RenderMode render_mode;  // Initialized in main()
 static std::vector<AnimationClip> anim_clips;
 
 VkWriteDescriptorSet write_desc_ubo_camera_mesh;
@@ -238,12 +240,13 @@ int main(int argc, char *argv[]) {
           }
         }
       };
+
   get_joints(make_joint(root_skel->GetNode(), -1), 0, 0);
 
   // Render the mesh.
   lava::app app("DEV 5 - WGooch", {argc, argv});
   // app.manager.on_create_param = [](lava::device::create_param& param) {
-    // app.config.req_api_version=lava::api_version::v1_2;
+  // app.config.req_api_version=lava::api_version::v1_2;
   // };
   app.config.surface.formats = {VK_FORMAT_B8G8R8A8_SRGB};
   success(app.setup(), "Failed to setup app.");
@@ -255,17 +258,17 @@ int main(int argc, char *argv[]) {
   app.staging.add(loaded_texture);
   app.camera.position = lava::v3(0.0f, -4.036f, 8.304f);
   app.camera.rotation = lava::v3(-15, 0, 0);
-  lava::mat4 model_space = lava::mat4(1.0); // This is an identity matrix.
+  lava::mat4 model_space = lava::mat4(1.0);  // This is an identity matrix.
 
   lava::descriptor::pool::ptr descriptor_pool;
   descriptor_pool = lava::make_descriptor_pool();
 
   // Load mesh.
   lava::buffer model_buffer;
-  success(model_buffer.create_mapped(app.device, &model_space,
-                                     sizeof(float) * 16,
-                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-          "Failed to map mesh buffer.");
+  success(
+      model_buffer.create_mapped(app.device, &model_space, sizeof(float) * 16,
+                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
+      "Failed to map mesh buffer.");
   made_mesh->create(app.device);
 
   lava::graphics_pipeline::ptr mesh_pipeline;
