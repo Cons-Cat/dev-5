@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_BUILD_TYPE Debug)
 SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(WIN32)
   #set (FBX_LNK "C:/Program Files/Autodesk/FBX/FBX SDK/2019.0/lib/vs2015/x86/debug/")
@@ -13,7 +14,6 @@ if(WIN32)
 endif(WIN32)
 
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/liblava ${CMAKE_CURRENT_BINARY_DIR}/liblava)
 target_sources(

@@ -242,6 +242,9 @@ int main(int argc, char *argv[]) {
 
   // Render the mesh.
   lava::app app("DEV 5 - WGooch", {argc, argv});
+  // app.manager.on_create_param = [](lava::device::create_param& param) {
+    // app.config.req_api_version=lava::api_version::v1_2;
+  // };
   app.config.surface.formats = {VK_FORMAT_B8G8R8A8_SRGB};
   success(app.setup(), "Failed to setup app.");
   lava::mesh::ptr made_mesh = lava::make_mesh();
@@ -380,7 +383,6 @@ int main(int argc, char *argv[]) {
     } else if (render_mode == skeleton) {
       bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
         bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set);
-        // int i = 0;
         for (size_t i = 0; i < joints.size(); i++) {
           bone_meshes[i]->bind_draw(cmd_buf);
         }
