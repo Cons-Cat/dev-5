@@ -18,6 +18,7 @@ ubo_model;
 
 layout(location = 0) out vec4 out_col;
 layout(location = 1) out vec2 out_uv;
+layout(location = 2) out vec3 out_norm;
 
 out gl_PerVertex {
     vec4 gl_Position;
@@ -26,6 +27,7 @@ out gl_PerVertex {
 void main() {
     out_col = in_col;
     out_uv = in_uv;
+    out_norm = in_norm;
     gl_Position = ubo_camera.projection  * ubo_camera.view
         * ubo_model.model * vec4(in_pos.x, in_pos.y * -1, in_pos.z, 1.0);
 }

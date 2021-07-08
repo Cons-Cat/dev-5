@@ -331,6 +331,7 @@ int main(int argc, char *argv[]) {
     bone_meshes[i]->add_data(cur_bone_mesh_data);
     bone_meshes[i]->create(app.device);
   }
+
   success(bones_buffer.create_mapped(app.device, &bones_data,
                                      sizeof(glm::vec3) * 3 * joints.size(),
                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
@@ -343,8 +344,8 @@ int main(int argc, char *argv[]) {
   AnimationClip anim_clip{};
   auto fps = FbxTime::EMode::eFrames24;
   anim_clip.duration = real_time.GetFrameCount(fps);
+
   for (double i = 1; i < anim_clip.duration; i++) {
-    // std::cout << "Frame update." << std::endl;
     Keyframe cur_keyframe;
     real_time.SetFrame(i, fps);
     cur_keyframe.time = i;
@@ -375,7 +376,6 @@ int main(int argc, char *argv[]) {
 
     // Start by rendering the mesh.
     render_mode = skeleton;
-    // TODO: Move back into make_mesh_pipeline()
 
     return true;
   };
@@ -388,6 +388,7 @@ int main(int argc, char *argv[]) {
       render_mode = skeleton;
       return true;
     }
+
     return false;
   });
 
@@ -409,6 +410,7 @@ int main(int argc, char *argv[]) {
       };
     }
     app.camera.update_view(dt, app.input.get_mouse_position());
+
     return true;
   };
 
