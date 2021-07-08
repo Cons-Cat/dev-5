@@ -16,7 +16,10 @@ static std::vector<AnimationClip> anim_clips;
 
 VkWriteDescriptorSet write_desc_ubo_camera_mesh;
 VkWriteDescriptorSet write_desc_ubo_model_mesh;
-VkWriteDescriptorSet write_desc_sampler_mesh;
+VkWriteDescriptorSet write_desc_diffuse_sampler_mesh;
+VkWriteDescriptorSet write_desc_emissive_sampler_mesh;
+VkWriteDescriptorSet write_desc_normal_sampler_mesh;
+VkWriteDescriptorSet write_desc_specular_sampler_mesh;
 VkWriteDescriptorSet write_desc_ubo_camera_bone;
 VkWriteDescriptorSet write_desc_ubo_model_bone;
 VkWriteDescriptorSet write_desc_ubo_camera_frag;
@@ -60,21 +63,31 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
   descriptor_layout->add_binding(
       1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       VK_SHADER_STAGE_VERTEX_BIT);  // World space matrix
-  descriptor_layout->add_binding(
-      2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // Color map texture
   // TODO: Can this be optimized:
   descriptor_layout->add_binding(
-      3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       VK_SHADER_STAGE_FRAGMENT_BIT);  // Proj / View matrices
+  // TODO: Can this be optimized by packing:
+  descriptor_layout->add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                 VK_SHADER_STAGE_FRAGMENT_BIT);  // Diffuse map
+  descriptor_layout->add_binding(
+      4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      VK_SHADER_STAGE_FRAGMENT_BIT);  // Emissive map
+  descriptor_layout->add_binding(
+      5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      VK_SHADER_STAGE_FRAGMENT_BIT);  // Normal map
+  descriptor_layout->add_binding(
+      6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      VK_SHADER_STAGE_FRAGMENT_BIT);  // Specular map
   success((descriptor_layout->create(app.device)),
           "Failed to create descriptor layout.");
   success((descriptor_pool->create(
               app.device,
               {
-                  {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2},
-                  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
-                  {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+                  {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
+                  // {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+                  // {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
+                  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
               })),
           "Failed to create descriptor pool.");
   pipeline_layout = lava::make_pipeline_layout();
@@ -87,7 +100,8 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 0,
-      .descriptorCount = 1,
+      // .descriptorCount = 2,
+      .descriptorCount = 1,  // Liblava cannot express more than 1 currently.
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = app.camera.get_descriptor_info(),
   };
@@ -99,28 +113,54 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = model_buffer.get_descriptor_info(),
   };
-  write_desc_sampler_mesh = {
+  write_desc_ubo_camera_frag = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 2,
       .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      .pImageInfo = loaded_diffuse->get_descriptor_info(),
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo = app.camera.get_descriptor_info(),
   };
-  write_desc_ubo_camera_frag = {
+  write_desc_diffuse_sampler_mesh = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 3,
       .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .pBufferInfo = app.camera.get_descriptor_info(),
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .pImageInfo = loaded_diffuse->get_descriptor_info(),
+  };
+  write_desc_emissive_sampler_mesh = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = descriptor_set,
+      .dstBinding = 4,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .pImageInfo = loaded_emissive->get_descriptor_info(),
+  };
+  write_desc_normal_sampler_mesh = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = descriptor_set,
+      .dstBinding = 5,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .pImageInfo = loaded_normal->get_descriptor_info(),
+  };
+  write_desc_specular_sampler_mesh = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = descriptor_set,
+      .dstBinding = 6,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .pImageInfo = loaded_specular->get_descriptor_info(),
   };
   app.device->vkUpdateDescriptorSets({
-      write_desc_ubo_camera_mesh,
-      write_desc_ubo_model_mesh,
-      write_desc_sampler_mesh,
-      write_desc_ubo_camera_frag,
+      write_desc_ubo_camera_mesh, write_desc_ubo_model_mesh,
+      write_desc_ubo_camera_frag, write_desc_diffuse_sampler_mesh,
+      write_desc_emissive_sampler_mesh,
+      write_desc_normal_sampler_mesh,
+      write_desc_specular_sampler_mesh,
   });
+
   lava::render_pass::ptr render_pass = app.shading.get_pass();
   success((pipeline->create(render_pass->get())), "Failed to make pipeline.");
   render_pass->add_front(pipeline);
@@ -168,7 +208,7 @@ fn make_bone_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 0,
-      .descriptorCount = 1,
+      .descriptorCount = 1,  // Liblava cannot express more than 1 currently.
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = app.camera.get_descriptor_info(),
   };
@@ -270,17 +310,20 @@ int main(int argc, char *argv[]) {
   // };
   app.config.surface.formats = {VK_FORMAT_B8G8R8A8_SRGB};
   success(app.setup(), "Failed to setup app.");
-  lava::mesh::ptr made_mesh = lava::make_mesh();
-  made_mesh->add_data(loaded_data);
+
   lava::texture::ptr diffuse_texture =
       lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_D.png");
-  lava::texture::ptr specular_texture =
-      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_spec.png");
   lava::texture::ptr emissive_texture = lava::load_texture(
       app.device, "../res/Idle.fbm/PPG_3D_Player_emissive.png");
   lava::texture::ptr normal_texture =
       lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_N.png");
+  lava::texture::ptr specular_texture =
+      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_spec.png");
   app.staging.add(diffuse_texture);
+  app.staging.add(emissive_texture);
+  app.staging.add(normal_texture);
+  app.staging.add(specular_texture);
+
   app.camera.position = lava::v3(0.0f, -4.036f, 8.304f);
   app.camera.rotation = lava::v3(-15, 0, 0);
   lava::mat4 model_space = lava::mat4(1.0);  // This is an identity matrix.
@@ -289,6 +332,8 @@ int main(int argc, char *argv[]) {
   descriptor_pool = lava::make_descriptor_pool();
 
   // Load mesh.
+  lava::mesh::ptr made_mesh = lava::make_mesh();
+  made_mesh->add_data(loaded_data);
   lava::buffer model_buffer;
   success(
       model_buffer.create_mapped(app.device, &model_space, sizeof(float) * 16,
@@ -297,7 +342,9 @@ int main(int argc, char *argv[]) {
   made_mesh->create(app.device);
 
   lava::graphics_pipeline::ptr mesh_pipeline;
-  lava::descriptor::ptr mesh_descriptor_layout;
+  lava::descriptor::ptr
+      mesh_descriptor_layout;  // TODO: This should be scoped within the
+                               // make_pipeline_...() functions.
   lava::pipeline_layout::ptr mesh_pipeline_layout;
   VkDescriptorSet mesh_descriptor_set = VK_NULL_HANDLE;
 

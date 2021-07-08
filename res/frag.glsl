@@ -1,12 +1,15 @@
 #version 450 core
 
-layout(binding = 2) uniform sampler2D diffuse_color;
-
-layout(binding = 3) uniform Ubo_Camera {
+layout(binding = 2) uniform Ubo_Camera {
     mat4 projection;
     mat4 view;
 }
 ubo_camera;
+
+layout(binding = 3) uniform sampler2D diffuse_color;
+layout(binding = 4) uniform sampler2D emissive_color;
+layout(binding = 5) uniform sampler2D normal_color;
+layout(binding = 6) uniform sampler2D specular_color;
 
 layout(location = 0) in vec4 in_col;
 layout(location = 1) in vec2 in_uv;
