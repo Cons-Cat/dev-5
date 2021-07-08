@@ -2,6 +2,12 @@
 
 layout(binding = 2) uniform sampler2D diffuse_color;
 
+layout(binding = 3) uniform Ubo_Camera {
+    mat4 projection;
+    mat4 view;
+}
+ubo_camera;
+
 layout(location = 0) in vec4 in_col;
 layout(location = 1) in vec2 in_uv;
 

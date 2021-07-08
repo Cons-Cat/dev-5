@@ -19,6 +19,7 @@ VkWriteDescriptorSet write_desc_ubo_model_mesh;
 VkWriteDescriptorSet write_desc_sampler_mesh;
 VkWriteDescriptorSet write_desc_ubo_camera_bone;
 VkWriteDescriptorSet write_desc_ubo_model_bone;
+VkWriteDescriptorSet write_desc_ubo_camera_frag;
 
 fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
                       lava::descriptor::ptr &descriptor_layout,
@@ -50,17 +51,28 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
        lava::to_ui32(offsetof(lava::vertex, normal))},
   });
   descriptor_layout = lava::make_descriptor();
-  descriptor_layout->add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                 VK_SHADER_STAGE_VERTEX_BIT);
-  descriptor_layout->add_binding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                                 VK_SHADER_STAGE_VERTEX_BIT);
-  descriptor_layout->add_binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                                 VK_SHADER_STAGE_FRAGMENT_BIT);
+  descriptor_layout->add_binding(
+      0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      VK_SHADER_STAGE_VERTEX_BIT);  // Proj / View matrices
+  descriptor_layout->add_binding(
+      1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      VK_SHADER_STAGE_VERTEX_BIT);  // World space matrix
+  descriptor_layout->add_binding(
+      2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      VK_SHADER_STAGE_FRAGMENT_BIT);  // Color map texture
+  // TODO: Can this be optimized:
+  descriptor_layout->add_binding(
+      3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      VK_SHADER_STAGE_FRAGMENT_BIT);  // Proj / View matrix
   success((descriptor_layout->create(app.device)),
           "Failed to create descriptor layout.");
   success((descriptor_pool->create(
-              app.device, {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2},
-                           {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}})),
+              app.device,
+              {
+                  {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2},
+                  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
+                  {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+              })),
           "Failed to create descriptor pool.");
   pipeline_layout = lava::make_pipeline_layout();
   pipeline_layout->add(descriptor_layout);
@@ -92,9 +104,20 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       .pImageInfo = loaded_texture->get_descriptor_info(),
   };
-  app.device->vkUpdateDescriptorSets({write_desc_ubo_camera_mesh,
-                                      write_desc_ubo_model_mesh,
-                                      write_desc_sampler_mesh});
+  write_desc_ubo_camera_frag = {
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = descriptor_set,
+      .dstBinding = 2,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      .pImageInfo = loaded_texture->get_descriptor_info(),
+  };
+  app.device->vkUpdateDescriptorSets({
+      write_desc_ubo_camera_mesh,
+      write_desc_ubo_model_mesh,
+      write_desc_sampler_mesh,
+      write_desc_ubo_camera_frag,
+  });
   lava::render_pass::ptr render_pass = app.shading.get_pass();
   success((pipeline->create(render_pass->get())), "Failed to make pipeline.");
   render_pass->add_front(pipeline);
@@ -121,12 +144,6 @@ fn make_bone_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
   pipeline->set_vertex_input_attributes({
       {0, 0, VK_FORMAT_R32G32B32_SFLOAT,
        lava::to_ui32(offsetof(lava::vertex, position))},
-      // {1, 0, VK_FORMAT_R32G32B32A32_SFLOAT,
-      //  lava::to_ui32(offsetof(lava::vertex, color))},
-      // {2, 0, VK_FORMAT_R32G32_SFLOAT,
-      //  lava::to_ui32(offsetof(lava::vertex, uv))},
-      // {3, 0, VK_FORMAT_R32G32B32_SFLOAT,
-      //  lava::to_ui32(offsetof(lava::vertex, normal))},
   });
   descriptor_layout = lava::make_descriptor();
   descriptor_layout->add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
