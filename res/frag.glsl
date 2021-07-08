@@ -2,7 +2,7 @@
 
 layout(binding = 2) uniform sampler2D diffuse_color;
 
-layout(binding = 0) uniform Ubo_Camera {
+layout(binding = 3) uniform Ubo_Camera {
     mat4 projection;
     mat4 view;
 }

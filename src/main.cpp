@@ -27,7 +27,10 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
                       lava::pipeline_layout::ptr &pipeline_layout,
                       VkDescriptorSet &descriptor_set,
                       lava::buffer &model_buffer,
-                      lava::texture::ptr &loaded_texture) {
+                      lava::texture::ptr &loaded_diffuse,
+                      lava::texture::ptr &loaded_emissive,
+                      lava::texture::ptr &loaded_normal,
+                      lava::texture::ptr &loaded_specular) {
   pipeline = make_graphics_pipeline(app.device);
   success((pipeline->add_shader(lava::file_data("../res/vert.spv"),
                                 VK_SHADER_STAGE_VERTEX_BIT)),
@@ -63,7 +66,7 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
   // TODO: Can this be optimized:
   descriptor_layout->add_binding(
       3, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // Proj / View matrix
+      VK_SHADER_STAGE_FRAGMENT_BIT);  // Proj / View matrices
   success((descriptor_layout->create(app.device)),
           "Failed to create descriptor layout.");
   success((descriptor_pool->create(
@@ -102,15 +105,15 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .dstBinding = 2,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      .pImageInfo = loaded_texture->get_descriptor_info(),
+      .pImageInfo = loaded_diffuse->get_descriptor_info(),
   };
   write_desc_ubo_camera_frag = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
-      .dstBinding = 2,
+      .dstBinding = 3,
       .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      .pImageInfo = loaded_texture->get_descriptor_info(),
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo = app.camera.get_descriptor_info(),
   };
   app.device->vkUpdateDescriptorSets({
       write_desc_ubo_camera_mesh,
@@ -269,10 +272,15 @@ int main(int argc, char *argv[]) {
   success(app.setup(), "Failed to setup app.");
   lava::mesh::ptr made_mesh = lava::make_mesh();
   made_mesh->add_data(loaded_data);
-  lava::texture::ptr loaded_texture =
-      // create_default_texture(app.device, {4096, 4096});
+  lava::texture::ptr diffuse_texture =
       lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_D.png");
-  app.staging.add(loaded_texture);
+  lava::texture::ptr specular_texture =
+      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_spec.png");
+  lava::texture::ptr emissive_texture = lava::load_texture(
+      app.device, "../res/Idle.fbm/PPG_3D_Player_emissive.png");
+  lava::texture::ptr normal_texture =
+      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_N.png");
+  app.staging.add(diffuse_texture);
   app.camera.position = lava::v3(0.0f, -4.036f, 8.304f);
   app.camera.rotation = lava::v3(-15, 0, 0);
   lava::mat4 model_space = lava::mat4(1.0);  // This is an identity matrix.
@@ -368,14 +376,15 @@ int main(int argc, char *argv[]) {
   app.on_create = [&]() {
     make_mesh_pipeline(app, mesh_pipeline, mesh_descriptor_layout,
                        descriptor_pool, mesh_pipeline_layout,
-                       mesh_descriptor_set, model_buffer, loaded_texture);
+                       mesh_descriptor_set, model_buffer, diffuse_texture,
+                       emissive_texture, normal_texture, specular_texture);
 
     make_bone_pipeline(app, bone_pipeline, bone_descriptor_layout,
                        descriptor_pool, bone_pipeline_layout,
                        bone_descriptor_set, model_buffer);
 
     // Start by rendering the mesh.
-    render_mode = skeleton;
+    render_mode = mesh;
 
     return true;
   };
