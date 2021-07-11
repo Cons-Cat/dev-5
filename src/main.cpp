@@ -70,15 +70,12 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
   // TODO: Can this be optimized by packing:
   descriptor_layout->add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                  VK_SHADER_STAGE_FRAGMENT_BIT);  // Diffuse map
-  descriptor_layout->add_binding(
-      4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // Emissive map
-  descriptor_layout->add_binding(
-      5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // Normal map
-  descriptor_layout->add_binding(
-      6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // Specular map
+  descriptor_layout->add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                 VK_SHADER_STAGE_FRAGMENT_BIT);  // Emissive map
+  descriptor_layout->add_binding(5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                 VK_SHADER_STAGE_FRAGMENT_BIT);  // Normal map
+  descriptor_layout->add_binding(6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                                 VK_SHADER_STAGE_FRAGMENT_BIT);  // Specular map
   success((descriptor_layout->create(app.device)),
           "Failed to create descriptor layout.");
   success((descriptor_pool->create(
@@ -154,8 +151,10 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .pImageInfo = loaded_specular->get_descriptor_info(),
   };
   app.device->vkUpdateDescriptorSets({
-      write_desc_ubo_camera_mesh, write_desc_ubo_model_mesh,
-      write_desc_ubo_camera_frag, write_desc_diffuse_sampler_mesh,
+      write_desc_ubo_camera_mesh,
+      write_desc_ubo_model_mesh,
+      write_desc_ubo_camera_frag,
+      write_desc_diffuse_sampler_mesh,
       write_desc_emissive_sampler_mesh,
       write_desc_normal_sampler_mesh,
       write_desc_specular_sampler_mesh,
@@ -309,6 +308,8 @@ int main(int argc, char *argv[]) {
   // app.config.req_api_version=lava::api_version::v1_2;
   // };
   app.config.surface.formats = {VK_FORMAT_B8G8R8A8_SRGB};
+  app.camera.rotation_speed = 250;
+  app.camera.movement_speed += 10;
   success(app.setup(), "Failed to setup app.");
 
   lava::texture::ptr diffuse_texture =
