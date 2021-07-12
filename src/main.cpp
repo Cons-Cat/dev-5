@@ -426,14 +426,11 @@ int main(int argc, char *argv[]) {
                        descriptor_pool, mesh_pipeline_layout,
                        mesh_descriptor_set, model_buffer, diffuse_texture,
                        emissive_texture, normal_texture, specular_texture);
-
     make_bone_pipeline(app, bone_pipeline, bone_descriptor_layout,
                        descriptor_pool, bone_pipeline_layout,
                        bone_descriptor_set, model_buffer);
-
     // Start by rendering the mesh.
     render_mode = mesh;
-
     return true;
   };
 
@@ -445,7 +442,6 @@ int main(int argc, char *argv[]) {
       render_mode = skeleton;
       return true;
     }
-
     return false;
   });
 
@@ -467,7 +463,6 @@ int main(int argc, char *argv[]) {
       };
     }
     app.camera.update_view(dt, app.input.get_mouse_position());
-
     return true;
   };
 

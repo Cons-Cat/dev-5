@@ -39,5 +39,4 @@ void main() {
         specular_brightness = pow(spec_angle, specularity);
     }
     out_color = vec4(diffuse_color * lambertian * specular_brightness, 1);
-
 }
