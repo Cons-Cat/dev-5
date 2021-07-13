@@ -1,4 +1,5 @@
 #include <fbxsdk.h>
+#include <imgui.h>
 
 #include <cstddef>
 #include <iostream>
@@ -430,6 +431,67 @@ int main(int argc, char *argv[]) {
     // Start by rendering the mesh.
     render_mode = mesh;
     return true;
+  };
+  app.imgui.on_draw = [&]() {
+    ImGui::SetNextWindowPos({30, 30}, ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize({330, 485}, ImGuiCond_FirstUseEver);
+    ImGui::Begin(app.get_name());
+    // imgui_left_spacing(2);
+    // ImGui::TextUnformatted(icon(ICON_FA_CHESS_ROOK));
+    ImGui::SameLine(0.f, 15.f);
+    // ImGui::Text("(load %.3f sec)", to_sec(mesh_load_time));
+    ImGui::Spacing();
+    // update_spawn_matrix |= ImGui::DragFloat3("position##spawn", (r32*)
+    // &spawn_position, 0.01f); update_spawn_matrix |=
+    // ImGui::DragFloat3("rotation##spawn", (r32*) &spawn_rotation, 0.1f);
+    // update_spawn_matrix |= ImGui::DragFloat3("scale##spawn", (r32*)
+    // &spawn_scale, 0.1f);
+    ImGui::Spacing();
+    // imgui_left_spacing();
+    // ImGui::Text("vertices: %d", spawn_mesh->get_vertices_count());
+    ImGui::SameLine();
+    // uv2 texture_size = default_texture->get_size();
+    // ImGui::Text("texture: %d x %d", texture_size.x, texture_size.y);
+    ImGui::Separator();
+    ImGui::Spacing();
+    // imgui_left_spacing(2);
+    // ImGui::TextUnformatted(icon(ICON_FA_VIDEO));
+    ImGui::SameLine(0.f, 15.f);
+    bool camera_active = app.camera.activated();
+    if (ImGui::Checkbox("active", &camera_active))
+      app.camera.set_active(camera_active);
+    ImGui::SameLine(0.f, 10.f);
+    bool first_person = app.camera.mode == lava::camera_mode::first_person;
+    if (ImGui::Checkbox("first person##camera", &first_person))
+      app.camera.mode = first_person ? lava::camera_mode::first_person
+                                     : lava::camera_mode::look_at;
+    ImGui::Spacing();
+    ImGui::DragFloat3("position##camera", (lava::r32 *)&app.camera.position,
+                      0.01f);
+    ImGui::DragFloat3("rotation##camera", (lava::r32 *)&app.camera.rotation,
+                      0.1f);
+    ImGui::Spacing();
+    ImGui::Checkbox("lock rotation##camera", &app.camera.lock_rotation);
+    ImGui::SameLine(0.f, 10.f);
+    ImGui::Checkbox("lock z##camera", &app.camera.lock_z);
+    ImGui::Spacing();
+    if (ImGui::CollapsingHeader("speed")) {
+      ImGui::DragFloat("movement##camera", &app.camera.movement_speed, 0.1f);
+      ImGui::DragFloat("rotation##camera", &app.camera.rotation_speed, 0.1f);
+      ImGui::DragFloat("zoom##camera", &app.camera.zoom_speed, 0.1f);
+    }
+    if (ImGui::CollapsingHeader("projection")) {
+      bool update_projection = false;
+      update_projection |= ImGui::DragFloat("fov", &app.camera.fov);
+      update_projection |= ImGui::DragFloat("z near", &app.camera.z_near);
+      update_projection |= ImGui::DragFloat("z far", &app.camera.z_far);
+      update_projection |= ImGui::DragFloat("aspect", &app.camera.aspect_ratio);
+      if (update_projection) app.camera.update_projection();
+    }
+    app.draw_about();
+    if (ImGui::IsItemHovered())
+      ImGui::SetTooltip("enter = first person\nr = lock rotation\nz = lock z");
+    ImGui::End();
   };
 
   app.input.key.listeners.add([&](lava::key_event::ref event) {
