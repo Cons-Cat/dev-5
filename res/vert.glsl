@@ -28,7 +28,11 @@ void main() {
     gl_Position = ubo_camera.projection  * ubo_camera.view
         * ubo_model.model * vert_pos_inv;
     vec4 vert_pos_4 = ubo_camera.view * ubo_model.model * vert_pos_inv;
-    out_pos = vec3(vert_pos_4) / vert_pos_4.w;
+    vert_pos_4 *= ubo_camera.projection;
+    out_pos = vec3(vert_pos_4);
+    // out_pos.x = -dot(ubo_camera.view[0].xyz, ubo_camera.view[3].xyz);
+    // out_pos.y = -dot(ubo_camera.view[1].xyz, ubo_camera.view[3].xyz);
+    // out_pos.z = -dot(ubo_camera.view[2].xyz, ubo_camera.view[3].xyz);
     out_col = in_col;
     out_uv = in_uv;
 }

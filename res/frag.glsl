@@ -18,25 +18,31 @@ layout(location = 2) in vec3 in_pos;
 layout(location = 0) out vec4 out_color;
 
 // Light source
-vec3 light_point = vec3(3, -10, 20) * 3;
-float ambience = 0;
+vec3 light_pos = vec3(10, -10, 20) * 3;
+vec3 ambience = vec3(0.25, 0.25, 0.25);
+
+// Material properties
+float shininess = 30.26;
 
 void main() {
     vec3 diffuse_color = texture(diffuse_color_map, in_uv).rgb;
-    float specularity = texture(specular_color_map, in_uv).r;
-    vec3 normal = texture(normal_color_map, in_uv).rgb;
-    vec3 light_dir = light_point - in_pos;
-    float distance = pow(length(light_dir), 2);
-    light_dir = normalize(light_dir);
-    float lambertian = max(dot(light_dir, normal), 0.0);
-    float specular_brightness = 0.0;
+    vec3 specular_color = texture(specular_color_map, in_uv).rgb;
+    vec3 normal_color = normalize(texture(normal_color_map, in_uv).rgb);
 
-    if (lambertian > 0.0) {
-        // Draw vector from <0,0,0> (the view pos) to the vertex coordinates.
-        vec3 view_dir = normalize(-in_pos);
-        vec3 half_dir = normalize(light_dir + view_dir);
-        float spec_angle = max(dot(half_dir, normal), 0.0);
-        specular_brightness = pow(spec_angle, specularity);
-    }
-    out_color = vec4(diffuse_color * lambertian * specular_brightness, 1);
+    vec3 light_dir = light_pos - in_pos;
+    light_dir = normalize(light_dir);
+    float lambertian_intensity = max(dot(light_dir, normal_color), 0.0);
+
+    // Draw vector from <0,0,0> (the view pos) to the vertex coordinates.
+    vec3 view_dir = normalize(-in_pos);
+    vec3 half_dir = normalize(light_dir + view_dir);
+    float specular_intensity = pow(max(dot(normal_color, half_dir), 0),
+                                    shininess);
+
+    vec3 ambient = ambience * diffuse_color;
+    vec3 diffuse = lambertian_intensity * diffuse_color;
+    vec3 specular = specular_intensity * specular_color;
+    diffuse -= specular;
+    diffuse = max(diffuse, 0);
+    out_color = vec4(ambient + specular + diffuse, 1);
 }
