@@ -54,6 +54,8 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
        lava::to_ui32(offsetof(lava::vertex, color))},
       {2, 0, VK_FORMAT_R32G32_SFLOAT,
        lava::to_ui32(offsetof(lava::vertex, uv))},
+      {3, 0, VK_FORMAT_R32G32_SFLOAT,
+       lava::to_ui32(offsetof(lava::vertex, normal))},
   });
   descriptor_layout = lava::make_descriptor();
   descriptor_layout->add_binding(

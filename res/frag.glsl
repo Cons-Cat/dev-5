@@ -14,11 +14,12 @@ layout(binding = 6) uniform sampler2D specular_color_map;
 layout(location = 0) in vec4 in_col;
 layout(location = 1) in vec2 in_uv;
 layout(location = 2) in vec3 in_pos;
+layout(location = 3) in vec3 in_norm;
 
 layout(location = 0) out vec4 out_color;
 
 // Light source
-vec3 light_pos = vec3(10, -10, 20) * 3;
+vec3 light_pos = vec3(10, -2, 20);
 vec3 ambience = vec3(0.25, 0.25, 0.25);
 
 // Material properties
@@ -27,11 +28,11 @@ float shininess = 30.26;
 void main() {
     vec3 diffuse_color = texture(diffuse_color_map, in_uv).rgb;
     vec3 specular_color = texture(specular_color_map, in_uv).rgb;
-    vec3 normal_color = normalize(texture(normal_color_map, in_uv).rgb);
+    vec3 normal_color = (texture(normal_color_map, in_uv).xyz);
 
     vec3 light_dir = light_pos - in_pos;
-    light_dir = normalize(light_dir);
-    float lambertian_intensity = max(dot(light_dir, normal_color), 0.0);
+    light_dir = normalize(light_dir)*sign(light_dir);
+    float lambertian_intensity = max(dot(light_dir, in_norm), 0.0);
 
     // Draw vector from <0,0,0> (the view pos) to the vertex coordinates.
     vec3 view_dir = normalize(-in_pos);
@@ -44,5 +45,8 @@ void main() {
     vec3 specular = specular_intensity * specular_color;
     diffuse -= specular;
     diffuse = max(diffuse, 0);
-    out_color = vec4(ambient + specular + diffuse, 1);
+    out_color = vec4(
+        ambient
+                     + specular
+                     + diffuse, 1);
 }
