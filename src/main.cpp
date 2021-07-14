@@ -23,7 +23,7 @@ VkWriteDescriptorSet write_desc_normal_sampler_mesh;
 VkWriteDescriptorSet write_desc_specular_sampler_mesh;
 VkWriteDescriptorSet write_desc_ubo_camera_bone;
 VkWriteDescriptorSet write_desc_ubo_model_bone;
-VkWriteDescriptorSet write_desc_ubo_camera_frag;
+VkWriteDescriptorSet write_desc_ubo_camera_pos;
 
 fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
                       lava::descriptor::ptr &descriptor_layout,
@@ -34,7 +34,8 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
                       lava::texture::ptr &loaded_diffuse,
                       lava::texture::ptr &loaded_emissive,
                       lava::texture::ptr &loaded_normal,
-                      lava::texture::ptr &loaded_specular) {
+                      lava::texture::ptr &loaded_specular,
+                      lava::buffer &camera_buffer) {
   pipeline = make_graphics_pipeline(app.device);
   success((pipeline->add_shader(lava::file_data("../res/vert.spv"),
                                 VK_SHADER_STAGE_VERTEX_BIT)),
@@ -64,11 +65,10 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
   descriptor_layout->add_binding(
       1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       VK_SHADER_STAGE_VERTEX_BIT);  // World space matrix
-  // TODO: Can this be optimized:
   descriptor_layout->add_binding(
       2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // Proj / View matrices
-  // TODO: Can this be optimized by packing:
+      VK_SHADER_STAGE_VERTEX_BIT);  // Camera position vector
+  // TODO: Can this be optimized by packing in an atlas:
   descriptor_layout->add_binding(3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                                  VK_SHADER_STAGE_FRAGMENT_BIT);  // Diffuse map
   descriptor_layout->add_binding(4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -83,8 +83,6 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
               app.device,
               {
                   {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
-                  // {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
-                  // {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},
                   {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
               })),
           "Failed to create descriptor pool.");
@@ -98,7 +96,6 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 0,
-      // .descriptorCount = 2,
       .descriptorCount = 1,  // Liblava cannot express more than 1 currently.
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = app.camera.get_descriptor_info(),
@@ -111,13 +108,13 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       .pBufferInfo = model_buffer.get_descriptor_info(),
   };
-  write_desc_ubo_camera_frag = {
+  write_desc_ubo_camera_pos = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = descriptor_set,
       .dstBinding = 2,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .pBufferInfo = app.camera.get_descriptor_info(),
+      .pBufferInfo = camera_buffer.get_descriptor_info(),
   };
   write_desc_diffuse_sampler_mesh = {
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -154,7 +151,7 @@ fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
   app.device->vkUpdateDescriptorSets({
       write_desc_ubo_camera_mesh,
       write_desc_ubo_model_mesh,
-      write_desc_ubo_camera_frag,
+      write_desc_ubo_camera_pos,
       write_desc_diffuse_sampler_mesh,
       write_desc_emissive_sampler_mesh,
       write_desc_normal_sampler_mesh,
@@ -330,6 +327,13 @@ int main(int argc, char *argv[]) {
   app.camera.rotation = lava::v3(-15, 0, 0);
   lava::mat4 model_space = lava::mat4(1.0);  // This is an identity matrix.
 
+  lava::buffer camera_buffer;
+  success(camera_buffer.create_mapped(app.device, &app.camera.position,
+                                      sizeof(float) * 3,
+                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT),
+          "Failed to map camera buffer.");
+
   lava::descriptor::pool::ptr descriptor_pool;
   descriptor_pool = lava::make_descriptor_pool();
 
@@ -426,7 +430,8 @@ int main(int argc, char *argv[]) {
     make_mesh_pipeline(app, mesh_pipeline, mesh_descriptor_layout,
                        descriptor_pool, mesh_pipeline_layout,
                        mesh_descriptor_set, model_buffer, diffuse_texture,
-                       emissive_texture, normal_texture, specular_texture);
+                       emissive_texture, normal_texture, specular_texture,
+                       camera_buffer);
     make_bone_pipeline(app, bone_pipeline, bone_descriptor_layout,
                        descriptor_pool, bone_pipeline_layout,
                        bone_descriptor_set, model_buffer);
@@ -434,30 +439,17 @@ int main(int argc, char *argv[]) {
     render_mode = mesh;
     return true;
   };
+
   app.imgui.on_draw = [&]() {
     ImGui::SetNextWindowPos({30, 30}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({330, 485}, ImGuiCond_FirstUseEver);
     ImGui::Begin(app.get_name());
-    // imgui_left_spacing(2);
-    // ImGui::TextUnformatted(icon(ICON_FA_CHESS_ROOK));
     ImGui::SameLine(0.f, 15.f);
-    // ImGui::Text("(load %.3f sec)", to_sec(mesh_load_time));
     ImGui::Spacing();
-    // update_spawn_matrix |= ImGui::DragFloat3("position##spawn", (r32*)
-    // &spawn_position, 0.01f); update_spawn_matrix |=
-    // ImGui::DragFloat3("rotation##spawn", (r32*) &spawn_rotation, 0.1f);
-    // update_spawn_matrix |= ImGui::DragFloat3("scale##spawn", (r32*)
-    // &spawn_scale, 0.1f);
     ImGui::Spacing();
-    // imgui_left_spacing();
-    // ImGui::Text("vertices: %d", spawn_mesh->get_vertices_count());
     ImGui::SameLine();
-    // uv2 texture_size = default_texture->get_size();
-    // ImGui::Text("texture: %d x %d", texture_size.x, texture_size.y);
     ImGui::Separator();
     ImGui::Spacing();
-    // imgui_left_spacing(2);
-    // ImGui::TextUnformatted(icon(ICON_FA_VIDEO));
     ImGui::SameLine(0.f, 15.f);
     bool camera_active = app.camera.activated();
     if (ImGui::Checkbox("active", &camera_active))
@@ -508,11 +500,14 @@ int main(int argc, char *argv[]) {
   });
 
   app.on_update = [&](lava::delta dt) {
-    // Command buffers
     mesh_pipeline->on_process = nullptr;
     bone_pipeline->on_process = nullptr;
     if (render_mode == mesh) {
+      memcpy(lava::as_ptr(camera_buffer.get_mapped_data()),
+             &app.camera.position, sizeof(float) * 3);
       mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
+        // vkCmdUpdateBuffer(cmd_buf, camera_buffer.get(), 0, sizeof(float) * 3,
+        //                   &app.camera.position);
         mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
         made_mesh->bind_draw(cmd_buf);
       };
