@@ -32,19 +32,13 @@ out gl_PerVertex {
 };
 
 void main() {
-    vec4 vert_pos_inv = ubo_model.world * vec4(in_pos.x, in_pos.y * -1, in_pos.z, 1.0);
+    vec4 vert_pos_inv = ubo_model.world * vec4(in_pos.x, -in_pos.y, in_pos.z, 1.0);
     gl_Position = ubo_camera.projection * ubo_camera.view
         * vert_pos_inv;
     out_pos_vert = vert_pos_inv;
-    out_pos_view.x = -dot(ubo_camera.view[3].xyz, ubo_camera.view[0].xyz);
-    out_pos_view.y = -dot(ubo_camera.view[3].xyz, ubo_camera.view[1].xyz);
-    out_pos_view.z = -dot(ubo_camera.view[3].xyz, ubo_camera.view[2].xyz);
-    out_pos_view.w = 1;
+
     out_pos_view = vec4(ubo_cam_pos.cam_pos, 1);
-    // out_pos_view = ubo_camera.view[3];
     out_col = in_col;
     out_uv = in_uv;
-    // out_norm = ubo_model.world * vec4(in_norm, 0);
-    out_norm = vec3(in_norm.x, -in_norm.y, in_norm.z)
-        * inverse(transpose(mat3(ubo_model.world)));
+    out_norm = vec3(in_norm.x, -in_norm.y, in_norm.z) * inverse(transpose(mat3(ubo_model.world)));
 }
