@@ -430,22 +430,20 @@ int main(int argc, char *argv[]) {
   descriptor_pool = lava::make_descriptor_pool();
 
   app.on_create = [&]() {
-    std::cout << "HI2";
     mesh_descriptor_layout = create_mesh_descriptor_layout(app);
-    std::cout << "HI";
+    mesh_pipeline_layout = lava::make_pipeline_layout();
 
-    using shader_module_t = std::tuple<lava::data, VkShaderStageFlagBits>;
+    using shader_module_t = std::tuple<std::string, VkShaderStageFlagBits>;
     auto shader_modules = std::vector<shader_module_t>();
-    // Not sure if this actually loads due to mismatched type of `data`...
-    shader_modules.push_back(shader_module_t(lava::file_data("../res/vert.spv"),
+    shader_modules.push_back(shader_module_t("../res/vert.spv",
                                              VK_SHADER_STAGE_VERTEX_BIT));
-    shader_modules.push_back(shader_module_t(lava::file_data("../res/frag.spv"),
+    shader_modules.push_back(shader_module_t("../res/frag.spv",
                                              VK_SHADER_STAGE_FRAGMENT_BIT));
 
-    mesh_pipeline = create_graphics_pipeline(
-        app, mesh_pipeline_layout, mesh_descriptor_layout, shader_modules);
+    // mesh_pipeline = create_graphics_pipeline(
+    //     app, mesh_pipeline_layout, mesh_descriptor_layout, shader_modules);
 
-    // Start by rendering the mesh.
+    // Default to rendering the mesh.
     render_mode = mesh;
     return true;
   };

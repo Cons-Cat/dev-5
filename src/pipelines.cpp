@@ -18,14 +18,14 @@ fn create_mesh_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
 fn create_graphics_pipeline(
     lava::app& app, lava::pipeline_layout::ptr pipeline_layout,
     lava::descriptor::ptr descriptor_layout,
-    std::vector<std::tuple<lava::data, VkShaderStageFlagBits>>&
+    std::vector<std::tuple<std::string, VkShaderStageFlagBits>>&
         shader_modules)
     ->lava::graphics_pipeline::ptr {
   lava::graphics_pipeline::ptr pipeline = make_graphics_pipeline(app.device);
   pipeline_layout->add(descriptor_layout);
   pipeline->set_layout(pipeline_layout);
   for (auto& shader : shader_modules) {
-    pipeline->add_shader(std::get<0>(shader), std::get<1>(shader));
+    pipeline->add_shader(lava::file_data(std::get<0>(shader)), std::get<1>(shader));
   }
   pipeline->add_color_blend_attachment();
   pipeline->set_depth_test_and_write();
