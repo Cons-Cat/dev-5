@@ -432,6 +432,8 @@ int main(int argc, char *argv[]) {
   app.on_create = [&]() {
     mesh_descriptor_layout = create_mesh_descriptor_layout(app);
     mesh_pipeline_layout = lava::make_pipeline_layout();
+    mesh_pipeline_layout->add(mesh_descriptor_layout);
+    mesh_pipeline_layout->create(app.device);
 
     using shader_module_t = std::tuple<std::string, VkShaderStageFlagBits>;
     auto shader_modules = std::vector<shader_module_t>();
@@ -440,8 +442,8 @@ int main(int argc, char *argv[]) {
     shader_modules.push_back(shader_module_t("../res/frag.spv",
                                              VK_SHADER_STAGE_FRAGMENT_BIT));
 
-    // mesh_pipeline = create_graphics_pipeline(
-    //     app, mesh_pipeline_layout, mesh_descriptor_layout, shader_modules);
+    mesh_pipeline = create_graphics_pipeline(
+        app, mesh_pipeline_layout, mesh_descriptor_layout, shader_modules);
 
     // Default to rendering the mesh.
     render_mode = mesh;
