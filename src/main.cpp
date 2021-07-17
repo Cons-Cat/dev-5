@@ -6,6 +6,7 @@
 #include <liblava/lava.hpp>
 #include <typeinfo>
 
+#include "pipelines.h"
 #include "fbx_loading.h"
 #include "includes.h"
 

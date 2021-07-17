@@ -22,6 +22,8 @@ target_sources(
   src/includes.h
   src/fbx_loading.h
   src/fbx_loading.cpp
+  src/pipelines.h
+  src/pipelines.cpp
 )
 
 if(WIN32)
