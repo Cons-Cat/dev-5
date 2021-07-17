@@ -6,9 +6,9 @@
 #include <liblava/lava.hpp>
 #include <typeinfo>
 
-#include "pipelines.h"
 #include "fbx_loading.h"
 #include "includes.h"
+#include "pipelines.h"
 
 using fbxsdk::FbxNode;
 
@@ -16,16 +16,17 @@ enum RenderMode { mesh, skeleton };
 static RenderMode render_mode;  // Initialized in main()
 static std::vector<AnimationClip> anim_clips;
 
-VkWriteDescriptorSet write_desc_ubo_camera_mesh;
-VkWriteDescriptorSet write_desc_ubo_model_mesh;
-VkWriteDescriptorSet write_desc_diffuse_sampler_mesh;
-VkWriteDescriptorSet write_desc_emissive_sampler_mesh;
-VkWriteDescriptorSet write_desc_normal_sampler_mesh;
-VkWriteDescriptorSet write_desc_specular_sampler_mesh;
-VkWriteDescriptorSet write_desc_ubo_camera_bone;
-VkWriteDescriptorSet write_desc_ubo_model_bone;
-VkWriteDescriptorSet write_desc_ubo_camera_pos;
+// VkWriteDescriptorSet write_desc_ubo_camera_mesh;
+// VkWriteDescriptorSet write_desc_ubo_model_mesh;
+// VkWriteDescriptorSet write_desc_diffuse_sampler_mesh;
+// VkWriteDescriptorSet write_desc_emissive_sampler_mesh;
+// VkWriteDescriptorSet write_desc_normal_sampler_mesh;
+// VkWriteDescriptorSet write_desc_specular_sampler_mesh;
+// VkWriteDescriptorSet write_desc_ubo_camera_bone;
+// VkWriteDescriptorSet write_desc_ubo_model_bone;
+// VkWriteDescriptorSet write_desc_ubo_camera_pos;
 
+/*
 fn make_mesh_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
                       lava::descriptor::ptr &descriptor_layout,
                       lava::descriptor::pool::ptr &descriptor_pool,
@@ -224,6 +225,7 @@ fn make_bone_pipeline(lava::app &app, lava::graphics_pipeline::ptr &pipeline,
   success((pipeline->create(render_pass->get())), "Failed to make pipeline.");
   render_pass->add_front(pipeline);
 }
+*/
 
 int main(int argc, char *argv[]) {
   // Load and read the mesh from an FBX.
@@ -311,19 +313,6 @@ int main(int argc, char *argv[]) {
   app.camera.movement_speed += 10;
   success(app.setup(), "Failed to setup app.");
 
-  lava::texture::ptr diffuse_texture =
-      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_D.png");
-  lava::texture::ptr emissive_texture = lava::load_texture(
-      app.device, "../res/Idle.fbm/PPG_3D_Player_emissive.png");
-  lava::texture::ptr normal_texture =
-      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_N.png");
-  lava::texture::ptr specular_texture =
-      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_spec.png");
-  app.staging.add(diffuse_texture);
-  app.staging.add(emissive_texture);
-  app.staging.add(normal_texture);
-  app.staging.add(specular_texture);
-
   app.camera.position = lava::v3(0.0f, -4.036f, 8.304f);
   app.camera.rotation = lava::v3(-15, 0, 0);
   lava::mat4 model_space = lava::mat4(1.0);  // This is an identity matrix.
@@ -335,27 +324,8 @@ int main(int argc, char *argv[]) {
                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT),
           "Failed to map camera buffer.");
 
-  lava::descriptor::pool::ptr descriptor_pool;
-  descriptor_pool = lava::make_descriptor_pool();
-
-  // Load mesh.
-  lava::mesh::ptr made_mesh = lava::make_mesh();
-  made_mesh->add_data(loaded_data);
-  lava::buffer model_buffer;
-  success(
-      model_buffer.create_mapped(app.device, &model_space, sizeof(float) * 16,
-                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-      "Failed to map mesh buffer.");
-  made_mesh->create(app.device);
-
-  lava::graphics_pipeline::ptr mesh_pipeline;
-  lava::descriptor::ptr
-      mesh_descriptor_layout;  // TODO: This should be scoped within the
-                               // make_pipeline_...() functions.
-  lava::pipeline_layout::ptr mesh_pipeline_layout;
-  VkDescriptorSet mesh_descriptor_set = VK_NULL_HANDLE;
-
   // Bones
+  // TODO: Factor into lines, not triangles
   lava::buffer bones_buffer;
   auto bone_meshes = new lava::mesh::ptr[joints.size()];
   // Hard coded 30 should be larger than the number of bones.
@@ -421,21 +391,60 @@ int main(int argc, char *argv[]) {
   }
 
   // Put meshes in GPU.
+
+  // Load textures
+  lava::texture::ptr diffuse_texture =
+      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_D.png");
+  lava::texture::ptr emissive_texture = lava::load_texture(
+      app.device, "../res/Idle.fbm/PPG_3D_Player_emissive.png");
+  lava::texture::ptr normal_texture =
+      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_N.png");
+  lava::texture::ptr specular_texture =
+      lava::load_texture(app.device, "../res/Idle.fbm/PPG_3D_Player_spec.png");
+  app.staging.add(diffuse_texture);
+  app.staging.add(emissive_texture);
+  app.staging.add(normal_texture);
+  app.staging.add(specular_texture);
+
+  // Load mesh.
+  lava::mesh::ptr made_mesh = lava::make_mesh();
+  made_mesh->add_data(loaded_data);
+  lava::buffer model_buffer;
+  success(
+      model_buffer.create_mapped(app.device, &model_space, sizeof(float) * 16,
+                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
+      "Failed to map mesh buffer.");
+  made_mesh->create(app.device);
+
+  lava::graphics_pipeline::ptr mesh_pipeline;
+  lava::descriptor::ptr mesh_descriptor_layout;
+  lava::pipeline_layout::ptr mesh_pipeline_layout;
+  VkDescriptorSet mesh_descriptor_set = VK_NULL_HANDLE;
+
   lava::graphics_pipeline::ptr bone_pipeline;
-  // lava::descriptor::pool::ptr bone_descriptor_pool;
   lava::descriptor::ptr bone_descriptor_layout;
   lava::pipeline_layout::ptr bone_pipeline_layout;
   VkDescriptorSet bone_descriptor_set = VK_NULL_HANDLE;
 
+  lava::descriptor::pool::ptr descriptor_pool;
+  descriptor_pool = lava::make_descriptor_pool();
+
   app.on_create = [&]() {
-    make_mesh_pipeline(app, mesh_pipeline, mesh_descriptor_layout,
-                       descriptor_pool, mesh_pipeline_layout,
-                       mesh_descriptor_set, model_buffer, diffuse_texture,
-                       emissive_texture, normal_texture, specular_texture,
-                       camera_buffer);
-    make_bone_pipeline(app, bone_pipeline, bone_descriptor_layout,
-                       descriptor_pool, bone_pipeline_layout,
-                       bone_descriptor_set, model_buffer);
+    std::cout << "HI2";
+    mesh_descriptor_layout = create_mesh_descriptor_layout(app);
+    std::cout << "HI";
+
+    using shader_module_t = std::tuple<lava::data, VkShaderStageFlagBits>;
+    auto shader_modules = std::vector<shader_module_t>();
+    // Not sure if this actually loads due to mismatched type of `data`...
+    shader_modules.push_back(shader_module_t(lava::file_data("../res/vert.spv"),
+                                             VK_SHADER_STAGE_VERTEX_BIT));
+    shader_modules.push_back(shader_module_t(lava::file_data("../res/frag.spv"),
+                                             VK_SHADER_STAGE_FRAGMENT_BIT));
+
+    mesh_pipeline = create_graphics_pipeline(
+        app, mesh_pipeline_layout, mesh_descriptor_layout, shader_modules);
+
     // Start by rendering the mesh.
     render_mode = mesh;
     return true;
@@ -501,26 +510,24 @@ int main(int argc, char *argv[]) {
   });
 
   app.on_update = [&](lava::delta dt) {
-    mesh_pipeline->on_process = nullptr;
-    bone_pipeline->on_process = nullptr;
-    if (render_mode == mesh) {
-      memcpy(lava::as_ptr(camera_buffer.get_mapped_data()),
-             &app.camera.position, sizeof(float) * 3);
-      mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
-        // vkCmdUpdateBuffer(cmd_buf, camera_buffer.get(), 0, sizeof(float) * 3,
-        //                   &app.camera.position);
-        mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
-        made_mesh->bind_draw(cmd_buf);
-      };
-    } else if (render_mode == skeleton) {
-      bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
-        bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set);
-        for (size_t i = 0; i < joints.size(); i++) {
-          bone_meshes[i]->bind_draw(cmd_buf);
-        }
-      };
-    }
-    app.camera.update_view(dt, app.input.get_mouse_position());
+    // mesh_pipeline->on_process = nullptr;
+    // bone_pipeline->on_process = nullptr;
+    // if (render_mode == mesh) {
+    //   memcpy(lava::as_ptr(camera_buffer.get_mapped_data()),
+    //          &app.camera.position, sizeof(float) * 3);
+    //   mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
+    //     mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
+    //     made_mesh->bind_draw(cmd_buf);
+    //   };
+    // } else if (render_mode == skeleton) {
+    //   bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
+    //     bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set);
+    //     for (size_t i = 0; i < joints.size(); i++) {
+    //       bone_meshes[i]->bind_draw(cmd_buf);
+    //     }
+    //   };
+    // }
+    // app.camera.update_view(dt, app.input.get_mouse_position());
     return true;
   };
 
