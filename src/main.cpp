@@ -225,6 +225,15 @@ int main(int argc, char *argv[]) {
           {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1},  // Texture maps
       });
 
+  VkWriteDescriptorSet const write_desc_ubo_camera{
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstSet = mesh_descriptor_set,
+      .dstBinding = 0,
+      .descriptorCount = 1,
+      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+      .pBufferInfo = app.camera.get_descriptor_info(),
+  };
+
   app.on_create = [&]() {
     std::cout
         << app.device->get_properties().limits.minUniformBufferOffsetAlignment

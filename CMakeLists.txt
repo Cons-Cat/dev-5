@@ -3,15 +3,7 @@ project(Dev CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_BUILD_TYPE Debug)
-SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -ggdb")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-if(WIN32)
-  #set (FBX_LNK "C:/Program Files/Autodesk/FBX/FBX SDK/2019.0/lib/vs2015/x86/debug/")
-  set(FBX_LNK "C:/Program Files/Autodesk/FBX/FBX SDK/2019.0/lib/vs2015/x86/")
-  link_directories(${FBX_LNK})
-endif(WIN32)
 
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp)
 

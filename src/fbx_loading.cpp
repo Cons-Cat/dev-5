@@ -48,7 +48,7 @@ fn read_mesh(FbxNode *node)->lava::mesh_data<lava::vertex> {
   return output;
 }
 
-fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data<lava::vertex>> {
+fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data> {
   FbxNodeAttribute *attribute = node->GetNodeAttribute();
   if (attribute != nullptr) {
     if (attribute->GetAttributeType() == FbxNodeAttribute::eMesh) {

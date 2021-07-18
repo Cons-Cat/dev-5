@@ -4,16 +4,32 @@
 
 fn create_mesh_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
   lava::descriptor::ptr descriptor_layout = lava::make_descriptor();
-  descriptor_layout->add_binding(
-      0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_VERTEX_BIT);  // View-Proj matrix
-  descriptor_layout->add_binding(
-      1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // Camera position vector.
-  descriptor_layout->add_binding(
-      2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      VK_SHADER_STAGE_FRAGMENT_BIT);  // Diffuse, emissive, normal, and specular
-                                      // texture maps.
+
+  // Camera coordinate vector.
+  lava::descriptor::binding::ptr global_binding =
+      lava::make_descriptor_binding(0);
+  global_binding->set_type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  global_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT |
+                                  VK_SHADER_STAGE_FRAGMENT_BIT);
+  global_binding->set_count(1);
+
+  // Diffuse, emissive, normal, and specular maps.
+  lava::descriptor::binding::ptr images_binding =
+      lava::make_descriptor_binding(1);
+  images_binding->set_type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  images_binding->set_stage_flags(VK_SHADER_STAGE_FRAGMENT_BIT);
+  images_binding->set_count(4);
+
+  // MVP matrix
+  lava::descriptor::binding::ptr object_binding =
+      lava::make_descriptor_binding(2);
+  object_binding->set_type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+  object_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
+  object_binding->set_count(1);
+
+  descriptor_layout->add(global_binding);
+  descriptor_layout->add(images_binding);
+  descriptor_layout->add(object_binding);
   descriptor_layout->create(app.device);
   return descriptor_layout;
 }

@@ -4,9 +4,9 @@
 
 fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2;
 
-fn read_mesh(FbxNode *node)->lava::mesh_data<lava::vertex>;
+fn read_mesh(FbxNode *node)->lava::mesh_data;
 
-fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data<lava::vertex>>;
+fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data>;
 
 typedef struct {
   // std::unique_ptr<FbxNode> node;
