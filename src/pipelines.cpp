@@ -14,11 +14,11 @@ fn create_mesh_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
   global_binding->set_count(1);
 
   // Diffuse, emissive, normal, and specular maps.
-  lava::descriptor::binding::ptr images_binding =
+  lava::descriptor::binding::ptr textures_binding =
       lava::make_descriptor_binding(1);
-  images_binding->set_type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-  images_binding->set_stage_flags(VK_SHADER_STAGE_FRAGMENT_BIT);
-  images_binding->set_count(4);
+  textures_binding->set_type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+  textures_binding->set_stage_flags(VK_SHADER_STAGE_FRAGMENT_BIT);
+  textures_binding->set_count(4);
 
   // MVP matrix
   lava::descriptor::binding::ptr object_binding =
@@ -28,7 +28,7 @@ fn create_mesh_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
   object_binding->set_count(1);
 
   descriptor_layout->add(global_binding);
-  descriptor_layout->add(images_binding);
+  descriptor_layout->add(textures_binding);
   descriptor_layout->add(object_binding);
   descriptor_layout->create(app.device);
   return descriptor_layout;
