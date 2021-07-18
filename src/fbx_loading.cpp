@@ -10,7 +10,7 @@ fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2 {
   return uv;
 }
 
-fn read_mesh(FbxNode *node)->lava::mesh_data {
+fn read_mesh(FbxNode *node)->lava::mesh_data<lava::vertex> {
   lava::mesh_data output;
   FbxMesh *mesh = node->GetMesh();
   FbxSkin *skin = (FbxSkin *)mesh->GetDeformer(0, FbxDeformer::eSkin);
@@ -48,7 +48,7 @@ fn read_mesh(FbxNode *node)->lava::mesh_data {
   return output;
 }
 
-fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data> {
+fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data<lava::vertex>> {
   FbxNodeAttribute *attribute = node->GetNodeAttribute();
   if (attribute != nullptr) {
     if (attribute->GetAttributeType() == FbxNodeAttribute::eMesh) {
