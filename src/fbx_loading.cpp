@@ -11,7 +11,7 @@ fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2 {
 }
 
 fn read_mesh(FbxNode *node)->lava::mesh_data {
-  lava::mesh_data output;
+  lava::mesh_template_data output;
   FbxMesh *mesh = node->GetMesh();
   FbxSkin *skin = (FbxSkin *)mesh->GetDeformer(0, FbxDeformer::eSkin);
   size_t tri_count = mesh->GetPolygonCount();
@@ -56,7 +56,8 @@ fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data> {
     }
   }
   for (size_t i = 0; i < node->GetChildCount(); i++) {
-    auto maybe_mesh = find_fbx_mesh(node->GetChild(i));
+    auto maybe_mesh =
+        find_fbx_mesh(node->GetChild(i));
     if (maybe_mesh.has_value()) {
       return maybe_mesh;
     }

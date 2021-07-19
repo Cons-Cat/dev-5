@@ -8,6 +8,7 @@ fn create_mesh_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
   // Camera coordinate vector.
   lava::descriptor::binding::ptr global_binding =
       lava::make_descriptor_binding(0);
+  // global_binding->set(0);
   global_binding->set_type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   global_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT |
                                   VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -16,6 +17,7 @@ fn create_mesh_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
   // Diffuse, emissive, normal, and specular maps.
   lava::descriptor::binding::ptr textures_binding =
       lava::make_descriptor_binding(1);
+  // global_binding->set(1);
   textures_binding->set_type(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
   textures_binding->set_stage_flags(VK_SHADER_STAGE_FRAGMENT_BIT);
   textures_binding->set_count(4);
@@ -23,6 +25,7 @@ fn create_mesh_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
   // MVP matrix
   lava::descriptor::binding::ptr object_binding =
       lava::make_descriptor_binding(2);
+  // global_binding->set(2);
   object_binding->set_type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   object_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
   object_binding->set_count(1);

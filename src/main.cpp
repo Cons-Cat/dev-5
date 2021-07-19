@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
   importer->Import(scene);
   importer->Destroy();
   FbxNode *root_node = scene->GetRootNode();
-  lava::mesh_data loaded_data = find_fbx_mesh(root_node).value();
+  lava::mesh_template_data loaded_data = find_fbx_mesh(root_node).value();
   // manager->Destroy();
   std::cout << "Path: " << path << std::endl;
 
@@ -106,13 +106,6 @@ int main(int argc, char *argv[]) {
   app.camera.rotation = lava::v3(-15, 0, 0);
   lava::mat4 model_space = lava::mat4(1.0);  // This is an identity matrix.
 
-  lava::buffer camera_buffer;
-  success(camera_buffer.create_mapped(app.device, &app.camera.position,
-                                      sizeof(float) * 3,
-                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT),
-          "Failed to map camera buffer.");
-
   // Bones
   // TODO: Factor into lines, not triangles
   lava::buffer bones_buffer;
@@ -141,22 +134,22 @@ int main(int argc, char *argv[]) {
         static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec_three));
     bones_data[i] =
         std::array<glm::mat4x4, 3>{cur_mat_one, cur_mat_two, cur_mat_three};
-    lava::mesh_data cur_bone_mesh_data;
-    cur_bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(cur_vec_one)});
-    cur_bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(cur_vec_two)});
-    cur_bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(cur_vec_three)});
-    bone_meshes[i] = lava::make_mesh();
-    bone_meshes[i]->add_data(cur_bone_mesh_data);
-    bone_meshes[i]->create(app.device);
+    // lava::mesh_data<lava::vertex> cur_bone_mesh_data;
+    // cur_bone_mesh_data.vertices.push_back(
+    //     lava::vertex{.position = fbxvec_to_glmvec(cur_vec_one)});
+    // cur_bone_mesh_data.vertices.push_back(
+    //     lava::vertex{.position = fbxvec_to_glmvec(cur_vec_two)});
+    // cur_bone_mesh_data.vertices.push_back(
+    //     lava::vertex{.position = fbxvec_to_glmvec(cur_vec_three)});
+    // bone_meshes[i] = lava::make_mesh();
+    // bone_meshes[i]->add_data(cur_bone_mesh_data);
+    // bone_meshes[i]->create(app.device);
   }
 
-  success(bones_buffer.create_mapped(app.device, &bones_data,
-                                     sizeof(glm::vec3) * 3 * joints.size(),
-                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-          "Failed to map bones buffer.");
+  // success(bones_buffer.create_mapped(app.device, &bones_data,
+  //                                    sizeof(glm::vec3) * 3 * joints.size(),
+  //                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
+  //         "Failed to map bones buffer.");
 
   // Load keyframe.
   FbxAnimStack *anim_stack = scene->GetCurrentAnimationStack();
@@ -194,9 +187,6 @@ int main(int argc, char *argv[]) {
   app.staging.add(emissive_texture);
   app.staging.add(normal_texture);
   app.staging.add(specular_texture);
-  // lava::buffer texture_buffer =
-  //     lava::buffer::create(app.device, &textures, sizeof(*textures),
-  //                          VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
   std::array<VkDescriptorImageInfo, 4> textures_descriptor_info{{
       *diffuse_texture->get_descriptor_info(),
       *emissive_texture->get_descriptor_info(),
@@ -204,25 +194,23 @@ int main(int argc, char *argv[]) {
       *specular_texture->get_descriptor_info(),
   }};
 
+  lava::buffer camera_buffer;
+  camera_buffer.create_mapped(
+      app.device, &app.camera.position, sizeof(float) * 3,
+      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+
   // Load mesh.
   lava::mesh::ptr made_mesh = lava::make_mesh();
   made_mesh->add_data(loaded_data);
   lava::buffer object_buffer;
-  success(
-      object_buffer.create_mapped(app.device, &model_space, sizeof(float) * 16,
-                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT),
-      "Failed to map mesh buffer.");
+  object_buffer.create_mapped(app.device, &model_space, sizeof(float) * 16,
+                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
   made_mesh->create(app.device);
 
   lava::graphics_pipeline::ptr mesh_pipeline;
   lava::descriptor::ptr mesh_descriptor_layout;
   lava::pipeline_layout::ptr mesh_pipeline_layout;
   VkDescriptorSet mesh_descriptor_set = VK_NULL_HANDLE;
-
-  lava::graphics_pipeline::ptr bone_pipeline;
-  // lava::descriptor::ptr bone_descriptor_layout;
-  // lava::pipeline_layout::ptr bone_pipeline_layout;
-  // VkDescriptorSet bone_descriptor_set = VK_NULL_HANDLE;
 
   lava::descriptor::pool::ptr descriptor_pool;
   descriptor_pool = lava::make_descriptor_pool();
@@ -234,13 +222,26 @@ int main(int argc, char *argv[]) {
           {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},  // Texture maps
       });
 
+  app.on_create = [&]() {
+    std::cout
+        << app.device->get_properties().limits.minUniformBufferOffsetAlignment
+        << '\n';
+  mesh_descriptor_layout = create_mesh_descriptor_layout(app);
+
+  mesh_pipeline_layout = lava::make_pipeline_layout();
+  mesh_pipeline_layout->add(mesh_descriptor_layout);
+  mesh_pipeline_layout->create(app.device);
+
+    mesh_descriptor_layout = create_mesh_descriptor_layout(app);
+    mesh_descriptor_set =
+        mesh_descriptor_layout->allocate(descriptor_pool->get());
+
   VkWriteDescriptorSet const descriptor_global{
       .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
       .dstSet = mesh_descriptor_set,
       .dstBinding = 0,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      // TODO: Camera vector buffer
       .pBufferInfo = camera_buffer.get_descriptor_info(),
   };
   VkWriteDescriptorSet const descriptor_textures{
@@ -257,19 +258,11 @@ int main(int argc, char *argv[]) {
       .dstBinding = 2,
       .descriptorCount = 1,
       .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      // TODO: MVP buffer
-      .pBufferInfo = camera_buffer.get_descriptor_info(),
+      .pBufferInfo = object_buffer.get_descriptor_info(),
   };
-  // app.device->vkUpdateDescriptorSets(
-  //     {descriptor_global, descriptor_textures, descriptor_object});
+  app.device->vkUpdateDescriptorSets(
+      {descriptor_global, descriptor_textures, descriptor_object});
 
-  app.on_create = [&]() {
-    std::cout
-        << app.device->get_properties().limits.minUniformBufferOffsetAlignment
-        << '\n';
-    mesh_descriptor_layout = create_mesh_descriptor_layout(app);
-    mesh_descriptor_set =
-        mesh_descriptor_layout->allocate(descriptor_pool->get());
 
     mesh_pipeline_layout = lava::make_pipeline_layout();
     mesh_pipeline_layout->add(mesh_descriptor_layout);
@@ -354,11 +347,16 @@ int main(int argc, char *argv[]) {
     // bone_pipeline->on_process = nullptr;
 
     if (render_mode == mesh) {
-      // TODO: Make M mat into MVP mat
-      // memcpy(lava::as_ptr(camera_buffer.get_mapped_data()),
-      //        &app.camera.position, sizeof(float) * 3);
+      lava::mat4 mvp =
+          app.camera.get_view_projection() *
+          glm::mat4x4(1);  // Identity matrix brought into projection space.
+
+      memcpy(object_buffer.get_mapped_data(), &mvp, sizeof(float) * 16);
+      memcpy(camera_buffer.get_mapped_data(), &app.camera.position,
+             sizeof(float) * 3);
+
       mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
-        // mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
+        mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
         made_mesh->bind_draw(cmd_buf);
       };
     }
