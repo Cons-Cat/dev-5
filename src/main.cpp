@@ -358,17 +358,16 @@ int main(int argc, char *argv[]) {
     camera_buffer_data.view_proj = app.camera.get_view_projection();
     camera_buffer_data.cam_pos = app.camera.position;
 
-
     if (render_mode == mesh) {
       memcpy(object_buffer.get_mapped_data(), &mesh_model_mat,
              sizeof(mesh_model_mat));
-             memcpy(camera_buffer.get_mapped_data(), &camera_buffer_data,
-                    sizeof(camera_buffer_data));
+      memcpy(camera_buffer.get_mapped_data(), &camera_buffer_data,
+             sizeof(camera_buffer_data));
 
-             mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
-               mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
-               made_mesh->bind_draw(cmd_buf);
-             };
+      mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
+        mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
+        made_mesh->bind_draw(cmd_buf);
+      };
     }
 
     // } else if (render_mode == skeleton) {

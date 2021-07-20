@@ -35,6 +35,6 @@ void main() {
     out_pos_view = vec4(ubo_camera.pos, 1);
     out_col = in_col;
     out_uv = in_uv;
-    out_norm=vec3(1,1,1);
-    // out_norm = vec3(in_norm.x, -in_norm.y, in_norm.z) * inverse(transpose(mat3(ubo_model.world)));
+    out_norm = vec3(in_norm.x, -in_norm.y, in_norm.z)
+        * inverse(transpose(mat3(ubo_obj.model)));
 }
