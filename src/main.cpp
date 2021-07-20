@@ -226,43 +226,42 @@ int main(int argc, char *argv[]) {
     std::cout
         << app.device->get_properties().limits.minUniformBufferOffsetAlignment
         << '\n';
-  mesh_descriptor_layout = create_mesh_descriptor_layout(app);
+    mesh_descriptor_layout = create_mesh_descriptor_layout(app);
 
-  mesh_pipeline_layout = lava::make_pipeline_layout();
-  mesh_pipeline_layout->add(mesh_descriptor_layout);
-  mesh_pipeline_layout->create(app.device);
+    mesh_pipeline_layout = lava::make_pipeline_layout();
+    mesh_pipeline_layout->add(mesh_descriptor_layout);
+    mesh_pipeline_layout->create(app.device);
 
     mesh_descriptor_layout = create_mesh_descriptor_layout(app);
     mesh_descriptor_set =
         mesh_descriptor_layout->allocate(descriptor_pool->get());
 
-  VkWriteDescriptorSet const descriptor_global{
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = mesh_descriptor_set,
-      .dstBinding = 0,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .pBufferInfo = camera_buffer.get_descriptor_info(),
-  };
-  VkWriteDescriptorSet const descriptor_textures{
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = mesh_descriptor_set,
-      .dstBinding = 1,
-      .descriptorCount = 4,
-      .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      .pImageInfo = &textures_descriptor_info.front(),
-  };
-  VkWriteDescriptorSet const descriptor_object{
-      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-      .dstSet = mesh_descriptor_set,
-      .dstBinding = 2,
-      .descriptorCount = 1,
-      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      .pBufferInfo = object_buffer.get_descriptor_info(),
-  };
-  app.device->vkUpdateDescriptorSets(
-      {descriptor_global, descriptor_textures, descriptor_object});
-
+    VkWriteDescriptorSet const descriptor_global{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = mesh_descriptor_set,
+        .dstBinding = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pBufferInfo = camera_buffer.get_descriptor_info(),
+    };
+    VkWriteDescriptorSet const descriptor_textures{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = mesh_descriptor_set,
+        .dstBinding = 1,
+        .descriptorCount = 4,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .pImageInfo = &textures_descriptor_info.front(),
+    };
+    VkWriteDescriptorSet const descriptor_object{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = mesh_descriptor_set,
+        .dstBinding = 2,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pBufferInfo = object_buffer.get_descriptor_info(),
+    };
+    app.device->vkUpdateDescriptorSets(
+        {descriptor_global, descriptor_textures, descriptor_object});
 
     mesh_pipeline_layout = lava::make_pipeline_layout();
     mesh_pipeline_layout->add(mesh_descriptor_layout);
@@ -343,6 +342,8 @@ int main(int argc, char *argv[]) {
   });
 
   app.on_update = [&](lava::delta dt) {
+    app.camera.update_view(dt, app.input.get_mouse_position());
+    app.camera.update_projection();
     mesh_pipeline->on_process = nullptr;
     // bone_pipeline->on_process = nullptr;
 
