@@ -104,7 +104,7 @@ int main(int argc, char *argv[]) {
 
   app.camera.position = lava::v3(0.0f, -4.036f, 8.304f);
   app.camera.rotation = lava::v3(-15, 0, 0);
-  lava::mat4 model_space = lava::mat4(1.0);  // This is an identity matrix.
+  lava::mat4 mesh_model_mat = lava::mat4(1.0);  // This is an identity matrix.
 
   // Bones
   // TODO: Factor into lines, not triangles
@@ -194,16 +194,24 @@ int main(int argc, char *argv[]) {
       *specular_texture->get_descriptor_info(),
   }};
 
+  typedef struct {
+    lava::mat4 view_proj;
+    alignas(16) lava::v3 cam_pos;
+  } CameraBuffer;
+
+  CameraBuffer camera_buffer_data = {lava::mat4(1), app.camera.position};
+
   lava::buffer camera_buffer;
   camera_buffer.create_mapped(
-      app.device, &app.camera.position, sizeof(float) * 3,
+      app.device, &camera_buffer_data, sizeof(camera_buffer_data),
       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
   // Load mesh.
   lava::mesh::ptr made_mesh = lava::make_mesh();
   made_mesh->add_data(loaded_data);
   lava::buffer object_buffer;
-  object_buffer.create_mapped(app.device, &model_space, sizeof(float) * 16,
+  object_buffer.create_mapped(app.device, &mesh_model_mat,
+                              sizeof(mesh_model_mat),
                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
   made_mesh->create(app.device);
 
@@ -347,19 +355,20 @@ int main(int argc, char *argv[]) {
     mesh_pipeline->on_process = nullptr;
     // bone_pipeline->on_process = nullptr;
 
+    camera_buffer_data.view_proj = app.camera.get_view_projection();
+    camera_buffer_data.cam_pos = app.camera.position;
+
+
     if (render_mode == mesh) {
-      lava::mat4 mvp =
-          app.camera.get_view_projection() *
-          glm::mat4x4(1);  // Identity matrix brought into projection space.
+      memcpy(object_buffer.get_mapped_data(), &mesh_model_mat,
+             sizeof(mesh_model_mat));
+             memcpy(camera_buffer.get_mapped_data(), &camera_buffer_data,
+                    sizeof(camera_buffer_data));
 
-      memcpy(object_buffer.get_mapped_data(), &mvp, sizeof(float) * 16);
-      memcpy(camera_buffer.get_mapped_data(), &app.camera.position,
-             sizeof(float) * 3);
-
-      mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
-        mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
-        made_mesh->bind_draw(cmd_buf);
-      };
+             mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
+               mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
+               made_mesh->bind_draw(cmd_buf);
+             };
     }
 
     // } else if (render_mode == skeleton) {

@@ -6,12 +6,13 @@ layout(location = 2) in vec2 in_uv;
 layout(location = 3) in vec3 in_norm;
 
 layout(binding = 0) uniform Ubo_Global {
+    mat4 view_proj;
     vec3 pos;
 }
 ubo_camera;
 
 layout(binding = 2) uniform Ubo_Object {
-    mat4 mvp;
+    mat4 model;
 }
 ubo_obj;
 
@@ -26,9 +27,9 @@ out gl_PerVertex {
 };
 
 void main() {
-    vec4 vert_pos_inv = // ubo_model.world *
+    vec4 vert_pos_inv = ubo_obj.model *
         vec4(in_pos.x, -in_pos.y, in_pos.z, 1.0);
-    gl_Position = ubo_obj.mvp * vert_pos_inv;
+    gl_Position = ubo_camera.view_proj * vert_pos_inv;
 
     out_pos_vert = vert_pos_inv;
     out_pos_view = vec4(ubo_camera.pos, 1);

@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/liblava ${CMAKE_CURRENT_BINARY_DIR}/liblava)
+
 target_sources(
   ${PROJECT_NAME} PRIVATE
   src/main.cpp
@@ -28,7 +29,6 @@ if(WIN32)
   #set_property(TARGET ${PROJECT_NAME} PROPERTY
   #VS_USER_PROPS "libfbxsdk-mt.lib")
   #set_property(TARGET ${PROJECT_NAME} PROPERTY
-
 endif(WIN32)
 
 if(UNIX AND NOT APPLE)
