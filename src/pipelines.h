@@ -11,6 +11,6 @@ fn create_bone_descriptor_layout(lava::app& app)->lava::descriptor::ptr;
 fn create_graphics_pipeline(
     lava::app& app, lava::pipeline_layout::ptr pipeline_layout,
     lava::descriptor::ptr descriptor_layout,
-    std::vector<std::tuple<std::string, VkShaderStageFlagBits>>&
-        shader_modules)
+    std::vector<std::tuple<std::string, VkShaderStageFlagBits>>& shader_modules,
+    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
     ->lava::graphics_pipeline::ptr;
