@@ -68,18 +68,18 @@ int main(int argc, char *argv[]) {
   }
   success(root_skel, "Failed to find a root skeleton.");
 
-  std::vector<Joint *> joints;
-  auto make_joint = [&](FbxNode *node, int index) -> Joint * {
-    // TODO: Factor into unique ptr.
-    return new Joint{.node = node,
-                     .parent_index = index,
-                     .transform = node->EvaluateGlobalTransform()};
+  std::vector<Joint> joints;
+  joints.reserve(27);  // TODO: Figure out how to make this dynamic.
+  auto make_joint = [&](FbxNode *node, int index) -> Joint {
+    return Joint{.node = node,
+                 .parent_index = index,
+                 .transform = node->EvaluateGlobalTransform()};
   };
-  std::function<void(Joint *, int, size_t)> get_joints =
-      [&](Joint *parent_joint, int parent_index, size_t parent_breadth) {
-        size_t children = parent_joint->node->GetChildCount();
+  std::function<void(Joint, int, size_t)> get_joints =
+      [&](Joint parent_joint, int parent_index, size_t parent_breadth) {
+        size_t children = parent_joint.node->GetChildCount();
         for (size_t i = 0; i < children; i++) {
-          auto cur_node = parent_joint->node->GetChild(i);
+          auto cur_node = parent_joint.node->GetChild(i);
           if (cur_node && cur_node->GetNodeAttribute() &&
               cur_node->GetNodeAttribute()->GetAttributeType() ==
                   FbxNodeAttribute::eSkeleton) {
@@ -91,6 +91,8 @@ int main(int argc, char *argv[]) {
       };
 
   get_joints(make_joint(root_skel->GetNode(), -1), 0, 0);
+  std::cout << "SKEL NODES: " << root_skel->GetNodeCount() << '\n';
+  std::cout << "JOINTS SIZE: " << joints.size() << '\n';
 
   // Render the mesh.
   lava::app app("DEV 5 - WGooch", {argc, argv});
@@ -108,10 +110,10 @@ int main(int argc, char *argv[]) {
   lava::mesh_data bone_mesh_data;
 
   for (size_t i = 0; i < joints.size(); i++) {
-    Joint *cur_joint = joints[i];
-    Joint *par_joint = joints[cur_joint->parent_index];
-    FbxVector4 cur_origin = joints[i]->transform.GetRow(3);
-    FbxVector4 par_origin = par_joint->transform.GetRow(3);
+    Joint cur_joint = joints[i];
+    Joint par_joint = joints[cur_joint.parent_index];
+    FbxVector4 cur_origin = joints[i].transform.GetRow(3);
+    FbxVector4 par_origin = par_joint.transform.GetRow(3);
     auto diff = par_origin - cur_origin;
     auto cur_mat = glm::identity<glm::dmat4x4>();
     auto cur_vec = cur_origin + diff;
@@ -145,11 +147,12 @@ int main(int argc, char *argv[]) {
     Keyframe cur_keyframe;
     real_time.SetFrame(i, fps);
     cur_keyframe.time = i;
+    cur_keyframe.joints.reserve(joints.size());
     for (auto joint : joints) {
-      cur_keyframe.joints.push_back(new Joint{
-          .node = joint->node,
-          .parent_index = joint->parent_index,
-          .transform = joint->node->EvaluateGlobalTransform(real_time)});
+      cur_keyframe.joints.push_back(
+          Joint{.node = joint.node,
+                .parent_index = joint.parent_index,
+                .transform = joint.node->EvaluateGlobalTransform(real_time)});
     }
     anim_clip.frames.push_back(cur_keyframe);
   }

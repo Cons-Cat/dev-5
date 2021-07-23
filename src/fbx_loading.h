@@ -17,7 +17,7 @@ typedef struct {
 
 typedef struct {
   double time;
-  std::vector<Joint *> joints;
+  std::vector<Joint> joints;
 } Keyframe;
 
 typedef struct {
