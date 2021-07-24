@@ -9,7 +9,6 @@ fn read_mesh(FbxNode *node)->lava::mesh_data;
 fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data>;
 
 typedef struct {
-  // std::unique_ptr<FbxNode> node;
   FbxNode *node;
   int parent_index;
   FbxAMatrix transform;
