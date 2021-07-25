@@ -15,10 +15,13 @@ layout(set = 1, binding = 0) readonly buffer Ssbo_Object_Model {
 layout(set = 1, binding = 1) readonly buffer Ssbo_Object_InvBind {
     mat4 inverse_bind[];
 };
-layout(set = 1, binding = 2) readonly buffer Ssbo_Object_GlobTrans {
-    mat4 global_transform[];
+layout(set = 1, binding = 2) readonly buffer Ssbo_Object_KeyframeTrans_Cur {
+    mat4 global_keyframetrans_cur[];
 };
-layout(set = 1, binding = 3) readonly buffer Ssbo_Object_Weights {
+layout(set = 1, binding = 3) readonly buffer Ssbo_Object_KeyframeTrans_Next {
+    mat4 global_keyframetrans_next[];
+};
+layout(set = 1, binding = 4) readonly buffer Ssbo_Object_Weights {
     float weight[];
 };
 
@@ -40,9 +43,17 @@ void main() {
     }
 
     mat4 global_transform_cur;
-    for (int i = 0; i < global_transform.length(); i++) {
+    for (int i = 0; i < global_keyframetrans_cur.length(); i++) {
         if (i == idx) {
-            global_transform_cur = global_transform[i];
+            global_transform_cur = global_keyframetrans_cur[i];
+            break;
+        }
+    }
+
+    mat4 global_transform_next;
+    for (int i = 0; i < global_keyframetrans_next.length(); i++) {
+        if (i == idx) {
+            global_transform_next = global_keyframetrans_next[i];
             break;
         }
     }
@@ -50,7 +61,7 @@ void main() {
     out_col = in_col;
     gl_Position = 1
         * ubo_camera.view_proj
-        * global_transform_cur
+        * global_transform_next
         * inverse_bind_cur
         * vec4(in_pos.x, in_pos.y * -1, in_pos.z, 1.0);
 }

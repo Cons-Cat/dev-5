@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
   // Bones
   lava::buffer bones_buffer;
   lava::mesh_data bone_mesh_data;
-  //TODO: Reserve size of vectors.
+  // TODO: Reserve size of vectors.
   std::vector<lava::mat4> bones_inverse_bind_mats;
   std::vector<lava::mat4> bones_keyframe_current_global_transforms;
   std::vector<lava::mat4> bones_keyframe_next_global_transforms;
@@ -158,10 +158,11 @@ int main(int argc, char *argv[]) {
     cur_keyframe.time = i;
     cur_keyframe.joints.reserve(joints.size());
     for (auto joint : joints) {
-      cur_keyframe.joints.push_back(
-          Joint{.node = joint.node,
-                .parent_index = joint.parent_index,
-                .transform = joint.node->EvaluateGlobalTransform(real_time)});
+      cur_keyframe.joints.push_back(Joint{
+          .node = joint.node,
+          .parent_index = joint.parent_index,
+          .transform = joint.node->EvaluateGlobalTransform(real_time),
+      });
     }
     anim_clip.frames.push_back(cur_keyframe);
   }
@@ -221,10 +222,16 @@ int main(int argc, char *argv[]) {
       bones_inverse_bind_mats.size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-  lava::buffer bone_global_keyframe_mats_buffer;
-  bone_global_keyframe_mats_buffer.create_mapped(
+  lava::buffer bone_keyframe_cur_mats_buffer;
+  bone_keyframe_cur_mats_buffer.create_mapped(
       app.device, &bones_keyframe_current_global_transforms[0],
       bones_keyframe_current_global_transforms.size() * sizeof(lava::mat4),
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
+  lava::buffer bone_keyframe_next_mats_buffer;
+  bone_keyframe_next_mats_buffer.create_mapped(
+      app.device, &bones_keyframe_next_global_transforms[0],
+      bones_keyframe_next_global_transforms.size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
   lava::buffer bone_weights_buffer;
@@ -330,18 +337,26 @@ int main(int argc, char *argv[]) {
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
           .pBufferInfo = bone_inverse_bind_mats_buffer.get_descriptor_info(),
       };
-      VkWriteDescriptorSet const descriptor_object_bone_globtrans{
+      VkWriteDescriptorSet const descriptor_object_bone_keyframe_trans_next{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
           .dstSet = bone_descriptor_set_object,
           .dstBinding = 2,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .pBufferInfo = bone_global_keyframe_mats_buffer.get_descriptor_info(),
+          .pBufferInfo = bone_keyframe_cur_mats_buffer.get_descriptor_info(),
+      };
+      VkWriteDescriptorSet const descriptor_object_bone_keyframe_trans_cur{
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstSet = bone_descriptor_set_object,
+          .dstBinding = 3,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .pBufferInfo = bone_keyframe_cur_mats_buffer.get_descriptor_info(),
       };
       VkWriteDescriptorSet const descriptor_object_bone_weights{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
           .dstSet = bone_descriptor_set_object,
-          .dstBinding = 3,
+          .dstBinding = 4,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
           .pBufferInfo = bone_weights_buffer.get_descriptor_info(),
@@ -354,21 +369,22 @@ int main(int argc, char *argv[]) {
           descriptor_object,
           descriptor_object_bone_model,
           descriptor_object_bone_invbind,
-          descriptor_object_bone_globtrans,
+          descriptor_object_bone_keyframe_trans_next,
+          descriptor_object_bone_keyframe_trans_cur,
           descriptor_object_bone_weights,
       });
-    }
 
-    // Loading shaders
-    {
-      using shader_module_t = std::tuple<std::string, VkShaderStageFlagBits>;
-      auto shader_modules = std::vector<shader_module_t>();
-      shader_modules.push_back(
-          shader_module_t("../res/vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
-      shader_modules.push_back(
-          shader_module_t("../res/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
-      mesh_pipeline =
-          create_graphics_pipeline(app, mesh_pipeline_layout, shader_modules);
+      // Loading shaders
+      {
+        using shader_module_t = std::tuple<std::string, VkShaderStageFlagBits>;
+        auto shader_modules = std::vector<shader_module_t>();
+        shader_modules.push_back(
+            shader_module_t("../res/vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
+        shader_modules.push_back(
+            shader_module_t("../res/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
+        mesh_pipeline =
+            create_graphics_pipeline(app, mesh_pipeline_layout, shader_modules);
+      }
     }
 
     {

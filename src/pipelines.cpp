@@ -59,14 +59,20 @@ fn create_bone_descriptors_layout(lava::app& app)
   invbind_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
   invbind_binding->set_count(1);
 
-  lava::descriptor::binding::ptr globtrans_binding =
+  lava::descriptor::binding::ptr keyframe_trans_cur_binding =
       lava::make_descriptor_binding(2);
-  globtrans_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  globtrans_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
-  globtrans_binding->set_count(1);
+  keyframe_trans_cur_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  keyframe_trans_cur_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
+  keyframe_trans_cur_binding->set_count(1);
+
+  lava::descriptor::binding::ptr keyframe_trans_next_binding =
+      lava::make_descriptor_binding(3);
+  keyframe_trans_next_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  keyframe_trans_next_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
+  keyframe_trans_next_binding->set_count(1);
 
   lava::descriptor::binding::ptr weights_binding =
-      lava::make_descriptor_binding(3);
+      lava::make_descriptor_binding(4);
   weights_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
   weights_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
   weights_binding->set_count(1);
@@ -76,7 +82,8 @@ fn create_bone_descriptors_layout(lava::app& app)
 
   descriptor_layout_object->add(model_binding);
   descriptor_layout_object->add(invbind_binding);
-  descriptor_layout_object->add(globtrans_binding);
+  descriptor_layout_object->add(keyframe_trans_cur_binding);
+  descriptor_layout_object->add(keyframe_trans_next_binding);
   descriptor_layout_object->add(weights_binding);
   descriptor_layout_object->create(app.device);
 
