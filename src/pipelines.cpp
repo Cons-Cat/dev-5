@@ -34,8 +34,10 @@ fn create_mesh_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
   return descriptor_layout;
 }
 
-fn create_bone_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
-  lava::descriptor::ptr descriptor_layout = lava::make_descriptor();
+fn create_bone_descriptors_layout(lava::app& app)
+    ->std::tuple<lava::descriptor::ptr, lava::descriptor::ptr> {
+  lava::descriptor::ptr descriptor_layout_global = lava::make_descriptor();
+  lava::descriptor::ptr descriptor_layout_object = lava::make_descriptor();
 
   // Camera position float3 and View-Proj matrix
   lava::descriptor::binding::ptr global_binding =
@@ -45,22 +47,44 @@ fn create_bone_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
   global_binding->set_count(1);
 
   // Model matrix, inverse bind poses, global transform poses, bone weights.
-  lava::descriptor::binding::ptr object_binding =
+  lava::descriptor::binding::ptr model_binding =
+      lava::make_descriptor_binding(0);
+  model_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  model_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
+  model_binding->set_count(1);
+
+  lava::descriptor::binding::ptr invbind_binding =
+      lava::make_descriptor_binding(1);
+  invbind_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  invbind_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
+  invbind_binding->set_count(1);
+
+  lava::descriptor::binding::ptr globtrans_binding =
       lava::make_descriptor_binding(2);
-  object_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
-  object_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
-  object_binding->set_count(4);
+  globtrans_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  globtrans_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
+  globtrans_binding->set_count(1);
 
-  descriptor_layout->add(global_binding);
-  descriptor_layout->add(object_binding);
-  descriptor_layout->create(app.device);
+  lava::descriptor::binding::ptr weights_binding =
+      lava::make_descriptor_binding(3);
+  weights_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  weights_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
+  weights_binding->set_count(1);
 
-  return descriptor_layout;
+  descriptor_layout_global->add(global_binding);
+  descriptor_layout_global->create(app.device);
+
+  descriptor_layout_object->add(model_binding);
+  descriptor_layout_object->add(invbind_binding);
+  descriptor_layout_object->add(globtrans_binding);
+  descriptor_layout_object->add(weights_binding);
+  descriptor_layout_object->create(app.device);
+
+  return {descriptor_layout_global, descriptor_layout_object};
 }
 
 fn create_graphics_pipeline(
     lava::app& app, lava::pipeline_layout::ptr pipeline_layout,
-    lava::descriptor::ptr descriptor_layout,
     std::vector<std::tuple<std::string, VkShaderStageFlagBits>>& shader_modules,
     VkPrimitiveTopology topology)
     ->lava::graphics_pipeline::ptr {

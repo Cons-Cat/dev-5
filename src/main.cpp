@@ -109,7 +109,8 @@ int main(int argc, char *argv[]) {
   lava::buffer bones_buffer;
   lava::mesh_data bone_mesh_data;
   std::vector<lava::mat4> bones_inverse_bind_mats;
-  std::array<std::vector<lava::mat4>, 2> bones_keyframes_global_transforms;
+  std::vector<lava::mat4> bones_keyframes_global_transforms;
+  // std::array<std::vector<lava::mat4>, 2> bones_keyframes_global_transforms;
   std::vector<float> bones_weights;
 
   for (size_t i = 0; i < joints.size(); i++) {
@@ -127,15 +128,18 @@ int main(int argc, char *argv[]) {
     bone_mesh_data.vertices.push_back(
         lava::vertex{.position = fbxvec_to_glmvec(cur_origin),
                      .color = lava::v4(1, 1, 1, 1)});
-    bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(par_origin),
-                     .color = lava::v4(1, 1, 1, 1)});
+    // bone_mesh_data.vertices.push_back(
+    //     lava::vertex{.position = fbxvec_to_glmvec(par_origin),
+    //                  .color = lava::v4(1, 1, 1, 1)});
 
+    // bones_inverse_bind_mats.push_back(cur_mat);
     bones_inverse_bind_mats.push_back(glm::inverse(cur_mat));
+    // bones_inverse_bind_mats.push_back(glm::mat4(1));
 
     // TODO: Move into keyframes
-    bones_keyframes_global_transforms[0].push_back(cur_mat);
-    bones_keyframes_global_transforms[1].push_back(cur_mat);
+    bones_keyframes_global_transforms.push_back(cur_mat);
+    // bones_keyframes_global_transforms[0].push_back(cur_mat);
+    // bones_keyframes_global_transforms[1].push_back(cur_mat);
   }
 
   lava::mesh::ptr bones_mesh = lava::make_mesh();
@@ -163,12 +167,6 @@ int main(int argc, char *argv[]) {
     }
     anim_clip.frames.push_back(cur_keyframe);
   }
-
-  // struct bone_descriptor {
-  //   lava::mat4 bone_transforms;
-  //   float bone_weights;
-  //   lava::mat4 inverse_bind_transform;
-  // };
 
   // Load textures
   // TODO: Abstract as function
@@ -200,7 +198,8 @@ int main(int argc, char *argv[]) {
 
   lava::buffer camera_buffer;
   camera_buffer.create_mapped(
-      app.device, &camera_buffer_data, sizeof(camera_buffer_data),
+      app.device, &camera_buffer_data,
+      sizeof(lava::mat4) + sizeof(app.camera.position),
       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
   // Load mesh.
@@ -212,31 +211,28 @@ int main(int argc, char *argv[]) {
                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
   made_mesh->create(app.device);
 
+  // Make bone buffers
   lava::buffer bone_object_buffer;
-  bone_object_buffer.create_mapped(app.device, &camera_buffer_data,
-                                   sizeof(camera_buffer_data),
+  bone_object_buffer.create_mapped(app.device, &mesh_model_mat,
+                                   sizeof(lava::mat4),
                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
   lava::buffer bone_inverse_bind_mats_buffer;
   bone_inverse_bind_mats_buffer.create_mapped(
-      app.device, &bones_inverse_bind_mats,
+      app.device, &bones_inverse_bind_mats[0],
       bones_inverse_bind_mats.size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
   lava::buffer bone_global_keyframe_mats_buffer;
   bone_global_keyframe_mats_buffer.create_mapped(
-      app.device, &bones_keyframes_global_transforms,
-      bones_keyframes_global_transforms.size() *
-          bones_keyframes_global_transforms[0].size() * sizeof(lava::mat4),
+      app.device, &bones_keyframes_global_transforms[0][0],
+      bones_keyframes_global_transforms.size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
   lava::buffer bone_weights_buffer;
   bone_weights_buffer.create_mapped(app.device, &bones_weights,
                                     1 * sizeof(float),
                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-
-  std::array<VkDescriptorBufferInfo, 4> bones_descriptor_info{
-      {*bone_object_buffer.get_descriptor_info(),
-       *bone_inverse_bind_mats_buffer.get_descriptor_info(),
-       *bone_global_keyframe_mats_buffer.get_descriptor_info(),
-       *bone_weights_buffer.get_descriptor_info()}};
 
   lava::graphics_pipeline::ptr mesh_pipeline;
   lava::descriptor::ptr mesh_descriptor_layout;
@@ -244,19 +240,20 @@ int main(int argc, char *argv[]) {
   VkDescriptorSet mesh_descriptor_set = VK_NULL_HANDLE;
 
   lava::graphics_pipeline::ptr bone_pipeline;
-  lava::descriptor::ptr bone_descriptor_layout;
+  // lava::descriptor::ptr bone_descriptor_layout;
   lava::pipeline_layout::ptr bone_pipeline_layout;
-  VkDescriptorSet bone_descriptor_set = VK_NULL_HANDLE;
+  VkDescriptorSet bone_descriptor_set_global = VK_NULL_HANDLE;
+  VkDescriptorSet bone_descriptor_set_object = VK_NULL_HANDLE;
 
   lava::descriptor::pool::ptr descriptor_pool;
   descriptor_pool = lava::make_descriptor_pool();
   descriptor_pool->create(app.device,
                           {
-                              {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
-                              {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4},
-                              {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
+                              {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 50},
+                              {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 50},
+                              {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 40},
                           },
-                          3);
+                          90);
 
   app.on_create = [&]() {
     std::cout
@@ -271,13 +268,17 @@ int main(int argc, char *argv[]) {
     mesh_pipeline_layout->create(app.device);
     mesh_descriptor_set =
         mesh_descriptor_layout->allocate(descriptor_pool->get());
-
-    bone_descriptor_layout = create_bone_descriptor_layout(app);
+    auto [bone_descriptor_layout_global, bone_descriptor_layout_object] =
+        create_bone_descriptors_layout(app);
     bone_pipeline_layout = lava::make_pipeline_layout();
-    bone_pipeline_layout->add(bone_descriptor_layout);
+    bone_pipeline_layout->add(bone_descriptor_layout_global);
+    bone_pipeline_layout->add(bone_descriptor_layout_object);
     bone_pipeline_layout->create(app.device);
-    bone_descriptor_set =
-        bone_descriptor_layout->allocate(descriptor_pool->get());
+
+    bone_descriptor_set_global =
+        bone_descriptor_layout_global->allocate(descriptor_pool->get());
+    bone_descriptor_set_object =
+        bone_descriptor_layout_object->allocate(descriptor_pool->get());
 
     // TODO: Move descriptor writes into a new func that also does descriptor
     // layout allocation.
@@ -309,34 +310,58 @@ int main(int argc, char *argv[]) {
 
       VkWriteDescriptorSet const descriptor_global_bone{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-          .dstSet = bone_descriptor_set,
+          .dstSet = bone_descriptor_set_global,
           .dstBinding = 0,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
           .pBufferInfo = camera_buffer.get_descriptor_info(),
       };
-      VkWriteDescriptorSet const descriptor_object_bone{
+      VkWriteDescriptorSet const descriptor_object_bone_model{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-          .dstSet = bone_descriptor_set,
-          .dstBinding = 2,
-          .descriptorCount = 4,
+          .dstSet = bone_descriptor_set_object,
+          .dstBinding = 0,
+          .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .pBufferInfo = &bones_descriptor_info.front(),
+          .pBufferInfo = bone_object_buffer.get_descriptor_info(),
+      };
+      VkWriteDescriptorSet const descriptor_object_bone_invbind{
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstSet = bone_descriptor_set_object,
+          .dstBinding = 1,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .pBufferInfo = bone_inverse_bind_mats_buffer.get_descriptor_info(),
+      };
+      VkWriteDescriptorSet const descriptor_object_bone_globtrans{
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstSet = bone_descriptor_set_object,
+          .dstBinding = 2,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .pBufferInfo = bone_global_keyframe_mats_buffer.get_descriptor_info(),
+      };
+      VkWriteDescriptorSet const descriptor_object_bone_weights{
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstSet = bone_descriptor_set_object,
+          .dstBinding = 3,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .pBufferInfo = bone_weights_buffer.get_descriptor_info(),
       };
 
-      app.device->vkUpdateDescriptorSets(
-          {descriptor_global, descriptor_global_bone, descriptor_textures,
-           descriptor_object, descriptor_object_bone});
+      app.device->vkUpdateDescriptorSets({
+          descriptor_global,
+          descriptor_global_bone,
+          descriptor_textures,
+          descriptor_object,
+          descriptor_object_bone_model,
+          descriptor_object_bone_invbind,
+          descriptor_object_bone_globtrans,
+          descriptor_object_bone_weights,
+      });
     }
 
-    mesh_pipeline_layout = lava::make_pipeline_layout();
-    mesh_pipeline_layout->add(mesh_descriptor_layout);
-    mesh_pipeline_layout->create(app.device);
-
-    bone_pipeline_layout = lava::make_pipeline_layout();
-    bone_pipeline_layout->add(bone_descriptor_layout);
-    bone_pipeline_layout->create(app.device);
-
+    // Loading shaders
     {
       using shader_module_t = std::tuple<std::string, VkShaderStageFlagBits>;
       auto shader_modules = std::vector<shader_module_t>();
@@ -344,8 +369,8 @@ int main(int argc, char *argv[]) {
           shader_module_t("../res/vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
       shader_modules.push_back(
           shader_module_t("../res/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
-      mesh_pipeline = create_graphics_pipeline(
-          app, mesh_pipeline_layout, mesh_descriptor_layout, shader_modules);
+      mesh_pipeline =
+          create_graphics_pipeline(app, mesh_pipeline_layout, shader_modules);
     }
 
     {
@@ -356,13 +381,14 @@ int main(int argc, char *argv[]) {
           shader_module_t("../res/line_vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
       shader_modules.push_back(shader_module_t("../res/line_frag.spv",
                                                VK_SHADER_STAGE_FRAGMENT_BIT));
-      bone_pipeline = create_graphics_pipeline(
-          app, bone_pipeline_layout, bone_descriptor_layout, shader_modules,
-          VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+      bone_pipeline =
+          create_graphics_pipeline(app, bone_pipeline_layout, shader_modules,
+                                   VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
     }
 
     // Default to rendering the mesh.
     render_mode = mesh;
+    // render_mode = skeleton;
     return true;
   };
 
@@ -447,7 +473,9 @@ int main(int argc, char *argv[]) {
       };
     } else if (render_mode == skeleton) {
       bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
-        bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set);
+        bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_global);
+        // bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_object, 2);
+        bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_object, 1);
         bones_mesh->bind_draw(cmd_buf);
       };
     }
