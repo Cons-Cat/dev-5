@@ -108,9 +108,10 @@ int main(int argc, char *argv[]) {
   // Bones
   lava::buffer bones_buffer;
   lava::mesh_data bone_mesh_data;
+  //TODO: Reserve size of vectors.
   std::vector<lava::mat4> bones_inverse_bind_mats;
-  std::vector<lava::mat4> bones_keyframes_global_transforms;
-  // std::array<std::vector<lava::mat4>, 2> bones_keyframes_global_transforms;
+  std::vector<lava::mat4> bones_keyframe_current_global_transforms;
+  std::vector<lava::mat4> bones_keyframe_next_global_transforms;
   std::vector<float> bones_weights;
 
   for (size_t i = 0; i < joints.size(); i++) {
@@ -128,18 +129,15 @@ int main(int argc, char *argv[]) {
     bone_mesh_data.vertices.push_back(
         lava::vertex{.position = fbxvec_to_glmvec(cur_origin),
                      .color = lava::v4(1, 1, 1, 1)});
-    // bone_mesh_data.vertices.push_back(
-    //     lava::vertex{.position = fbxvec_to_glmvec(par_origin),
-    //                  .color = lava::v4(1, 1, 1, 1)});
+    bone_mesh_data.vertices.push_back(
+        lava::vertex{.position = fbxvec_to_glmvec(par_origin),
+                     .color = lava::v4(1, 1, 1, 1)});
 
-    // bones_inverse_bind_mats.push_back(cur_mat);
     bones_inverse_bind_mats.push_back(glm::inverse(cur_mat));
-    // bones_inverse_bind_mats.push_back(glm::mat4(1));
 
     // TODO: Move into keyframes
-    bones_keyframes_global_transforms.push_back(cur_mat);
-    // bones_keyframes_global_transforms[0].push_back(cur_mat);
-    // bones_keyframes_global_transforms[1].push_back(cur_mat);
+    bones_keyframe_current_global_transforms.push_back(cur_mat);
+    bones_keyframe_next_global_transforms.push_back(cur_mat);
   }
 
   lava::mesh::ptr bones_mesh = lava::make_mesh();
@@ -225,8 +223,8 @@ int main(int argc, char *argv[]) {
 
   lava::buffer bone_global_keyframe_mats_buffer;
   bone_global_keyframe_mats_buffer.create_mapped(
-      app.device, &bones_keyframes_global_transforms[0][0],
-      bones_keyframes_global_transforms.size() * sizeof(lava::mat4),
+      app.device, &bones_keyframe_current_global_transforms[0],
+      bones_keyframe_current_global_transforms.size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
   lava::buffer bone_weights_buffer;

@@ -13,13 +13,13 @@ layout(set = 1, binding = 0) readonly buffer Ubo_Object_Model {
     mat4 model;
 };
 layout(set = 1, binding = 1) readonly buffer Ubo_Object_InvBind {
-    mat4 inverse_bind[27];
+    mat4 inverse_bind[54];
 };
 layout(set = 1, binding = 2) readonly buffer Ubo_Object_GlobTrans {
-    mat4 global_transform[27];
+    mat4 global_transform[54];
 };
 layout(set = 1, binding = 3) readonly buffer Ubo_Object_Weights {
-    float weight[27];
+    float weight[54];
 };
 
 layout(location = 0) out vec4 out_col;
@@ -29,7 +29,7 @@ out gl_PerVertex {
 };
 
 void main() {
-    int idx = gl_VertexIndex;
+    int idx = gl_VertexIndex / 2;
     out_col = in_col;
     gl_Position = 1
         * ubo_camera.view_proj
