@@ -41,8 +41,7 @@ fn create_bone_descriptor_layout(lava::app& app)->lava::descriptor::ptr {
   lava::descriptor::binding::ptr global_binding =
       lava::make_descriptor_binding(0);
   global_binding->set_type(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-  global_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT |
-                                  VK_SHADER_STAGE_FRAGMENT_BIT);
+  global_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
   global_binding->set_count(1);
 
   // Model matrix, inverse bind poses, global transform poses, bone weights.

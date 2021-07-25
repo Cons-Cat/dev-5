@@ -125,9 +125,11 @@ int main(int argc, char *argv[]) {
         static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec));
 
     bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(cur_origin)});
+        lava::vertex{.position = fbxvec_to_glmvec(cur_origin),
+                     .color = lava::v4(1, 1, 1, 1)});
     bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(par_origin)});
+        lava::vertex{.position = fbxvec_to_glmvec(par_origin),
+                     .color = lava::v4(1, 1, 1, 1)});
 
     bones_inverse_bind_mats.push_back(glm::inverse(cur_mat));
 
@@ -210,21 +212,28 @@ int main(int argc, char *argv[]) {
                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
   made_mesh->create(app.device);
 
+  lava::buffer bone_object_buffer;
+  bone_object_buffer.create_mapped(app.device, &camera_buffer_data,
+                                   sizeof(camera_buffer_data),
+                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
   lava::buffer bone_inverse_bind_mats_buffer;
   bone_inverse_bind_mats_buffer.create_mapped(
-      app.device, &bones_inverse_bind_mats, sizeof(bones_inverse_bind_mats),
+      app.device, &bones_inverse_bind_mats,
+      bones_inverse_bind_mats.size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
   lava::buffer bone_global_keyframe_mats_buffer;
   bone_global_keyframe_mats_buffer.create_mapped(
       app.device, &bones_keyframes_global_transforms,
-      sizeof(bones_keyframes_global_transforms),
+      bones_keyframes_global_transforms.size() *
+          bones_keyframes_global_transforms[0].size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
   lava::buffer bone_weights_buffer;
-  bone_weights_buffer.create_mapped(app.device, &bones_weights, 1,
+  bone_weights_buffer.create_mapped(app.device, &bones_weights,
+                                    1 * sizeof(float),
                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
   std::array<VkDescriptorBufferInfo, 4> bones_descriptor_info{
-      {*object_buffer.get_descriptor_info(),
+      {*bone_object_buffer.get_descriptor_info(),
        *bone_inverse_bind_mats_buffer.get_descriptor_info(),
        *bone_global_keyframe_mats_buffer.get_descriptor_info(),
        *bone_weights_buffer.get_descriptor_info()}};
@@ -317,7 +326,7 @@ int main(int argc, char *argv[]) {
 
       app.device->vkUpdateDescriptorSets(
           {descriptor_global, descriptor_global_bone, descriptor_textures,
-           descriptor_object});
+           descriptor_object, descriptor_object_bone});
     }
 
     mesh_pipeline_layout = lava::make_pipeline_layout();
@@ -425,11 +434,12 @@ int main(int argc, char *argv[]) {
     camera_buffer_data.view_proj = app.camera.get_view_projection();
     camera_buffer_data.cam_pos = app.camera.position;
 
+    memcpy(camera_buffer.get_mapped_data(), &camera_buffer_data,
+           sizeof(camera_buffer_data));
+
     if (render_mode == mesh) {
       memcpy(object_buffer.get_mapped_data(), &mesh_model_mat,
              sizeof(mesh_model_mat));
-      memcpy(camera_buffer.get_mapped_data(), &camera_buffer_data,
-             sizeof(camera_buffer_data));
 
       mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
         mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
@@ -441,6 +451,7 @@ int main(int argc, char *argv[]) {
         bones_mesh->bind_draw(cmd_buf);
       };
     }
+
     app.camera.update_view(dt, app.input.get_mouse_position());
     return true;
   };
