@@ -17,6 +17,7 @@ typedef struct {
 typedef struct {
   double time;
   std::vector<Joint> joints;
+  std::vector<lava::mat4> transforms;
 } Keyframe;
 
 typedef struct {
@@ -27,3 +28,5 @@ typedef struct {
 void find_fbx_poses(FbxNode *node, std::vector<FbxPose *> *poses);
 
 fn fbxvec_to_glmvec(FbxVector4 vec)->glm::vec3;
+
+fn fbxmat_to_lavamat(FbxAMatrix mat)->lava::mat4;

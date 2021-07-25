@@ -61,7 +61,7 @@ void main() {
     out_col = in_col;
     gl_Position = 1
         * ubo_camera.view_proj
-        * global_transform_next
+        * global_transform_cur
         * inverse_bind_cur
         * vec4(in_pos.x, in_pos.y * -1, in_pos.z, 1.0);
 }

@@ -56,8 +56,7 @@ fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data> {
     }
   }
   for (size_t i = 0; i < node->GetChildCount(); i++) {
-    auto maybe_mesh =
-        find_fbx_mesh(node->GetChild(i));
+    auto maybe_mesh = find_fbx_mesh(node->GetChild(i));
     if (maybe_mesh.has_value()) {
       return maybe_mesh;
     }
@@ -85,4 +84,15 @@ void find_fbx_poses(FbxNode *node, std::vector<FbxPose *> *poses)
 fn fbxvec_to_glmvec(FbxVector4 vec)->glm::vec3 {
   return glm::vec3(
       static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&vec)));
+}
+
+fn fbxmat_to_lavamat(FbxAMatrix fbx_mat)->lava::mat4 {
+  lava::mat4 lava_mat;
+  // for (size_t i = 0; i < 4; i++) {
+  //   for (size_t j = 0; j < 4; j++) {
+  //     lava_mat[i][j] = fbx_mat.Get(i, j);
+  //   }
+  // }
+  lava_mat = static_cast<lava::mat4>(*reinterpret_cast<glm::dmat4 *>(&fbx_mat));
+  return lava_mat;
 }

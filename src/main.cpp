@@ -14,7 +14,8 @@ using fbxsdk::FbxNode;
 
 enum RenderMode { mesh, skeleton };
 static RenderMode render_mode;  // Initialized in main()
-static std::vector<AnimationClip> anim_clips;
+// static std::vector<AnimationClip> anim_clips;
+static size_t cur_keyframe = 0;
 
 int main(int argc, char *argv[]) {
   // Load and read the mesh from an FBX.
@@ -110,7 +111,7 @@ int main(int argc, char *argv[]) {
   lava::mesh_data bone_mesh_data;
   // TODO: Reserve size of vectors.
   std::vector<lava::mat4> bones_inverse_bind_mats;
-  std::vector<lava::mat4> bones_keyframe_current_global_transforms;
+  std::vector<lava::mat4> bones_keyframe_cur_global_transforms;
   std::vector<lava::mat4> bones_keyframe_next_global_transforms;
   std::vector<float> bones_weights;
 
@@ -136,7 +137,7 @@ int main(int argc, char *argv[]) {
     bones_inverse_bind_mats.push_back(glm::inverse(cur_mat));
 
     // TODO: Move into keyframes
-    bones_keyframe_current_global_transforms.push_back(cur_mat);
+    bones_keyframe_cur_global_transforms.push_back(cur_mat);
     bones_keyframe_next_global_transforms.push_back(cur_mat);
   }
 
@@ -157,12 +158,21 @@ int main(int argc, char *argv[]) {
     real_time.SetFrame(i, fps);
     cur_keyframe.time = i;
     cur_keyframe.joints.reserve(joints.size());
+    cur_keyframe.transforms.reserve(joints.size());
     for (auto joint : joints) {
       cur_keyframe.joints.push_back(Joint{
           .node = joint.node,
           .parent_index = joint.parent_index,
           .transform = joint.node->EvaluateGlobalTransform(real_time),
       });
+      // auto new_mat = glm::mat4(1);
+      // new_mat[3] = glm::vec4(
+      //     fbxvec_to_glmvec(
+      //         joint.node->EvaluateGlobalTransform(real_time).GetColumn(3)),
+      //     1);
+      // cur_keyframe.transforms.push_back(new_mat);
+      cur_keyframe.transforms.push_back(
+          fbxmat_to_lavamat(joint.node->EvaluateGlobalTransform(real_time)));
     }
     anim_clip.frames.push_back(cur_keyframe);
   }
@@ -224,8 +234,8 @@ int main(int argc, char *argv[]) {
 
   lava::buffer bone_keyframe_cur_mats_buffer;
   bone_keyframe_cur_mats_buffer.create_mapped(
-      app.device, &bones_keyframe_current_global_transforms[0],
-      bones_keyframe_current_global_transforms.size() * sizeof(lava::mat4),
+      app.device, &bones_keyframe_cur_global_transforms[0],
+      bones_keyframe_cur_global_transforms.size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
   lava::buffer bone_keyframe_next_mats_buffer;
@@ -245,7 +255,6 @@ int main(int argc, char *argv[]) {
   VkDescriptorSet mesh_descriptor_set = VK_NULL_HANDLE;
 
   lava::graphics_pipeline::ptr bone_pipeline;
-  // lava::descriptor::ptr bone_descriptor_layout;
   lava::pipeline_layout::ptr bone_pipeline_layout;
   VkDescriptorSet bone_descriptor_set_global = VK_NULL_HANDLE;
   VkDescriptorSet bone_descriptor_set_object = VK_NULL_HANDLE;
@@ -401,8 +410,8 @@ int main(int argc, char *argv[]) {
     }
 
     // Default to rendering the mesh.
-    render_mode = mesh;
-    // render_mode = skeleton;
+    // render_mode = mesh;
+    render_mode = skeleton;
     return true;
   };
 
@@ -461,6 +470,12 @@ int main(int argc, char *argv[]) {
     } else if (event.pressed(lava::key::_2)) {
       render_mode = skeleton;
       return true;
+    } else if (event.pressed(lava::key::_4)) {
+      cur_keyframe++;
+      return true;
+    } else if (event.pressed(lava::key::_0)) {
+      cur_keyframe--;
+      return true;
     }
     return false;
   });
@@ -486,6 +501,15 @@ int main(int argc, char *argv[]) {
         made_mesh->bind_draw(cmd_buf);
       };
     } else if (render_mode == skeleton) {
+      memcpy(bone_keyframe_cur_mats_buffer.get_mapped_data(),
+             &anim_clip.frames[cur_keyframe].transforms[0],
+             sizeof(lava::mat4) *
+                 anim_clip.frames[cur_keyframe].transforms.size());
+      memcpy(bone_keyframe_next_mats_buffer.get_mapped_data(),
+             &anim_clip.frames[cur_keyframe + 1].transforms[0],
+             sizeof(lava::mat4) *
+                 anim_clip.frames[cur_keyframe + 1].transforms.size());
+
       bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
         bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_global);
         // bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_object, 2);
