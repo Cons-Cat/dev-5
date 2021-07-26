@@ -28,7 +28,7 @@ out gl_PerVertex {
 
 void main() {
     vec4 vert_pos_inv = ubo_obj.model *
-        vec4(in_pos.x, -in_pos.y, in_pos.z, 1.0);
+        vec4(in_pos.x, in_pos.y, in_pos.z, 1.0);
     gl_Position = ubo_camera.view_proj * vert_pos_inv;
 
     out_pos_vert = vert_pos_inv;
@@ -37,4 +37,7 @@ void main() {
     out_uv = in_uv;
     out_norm = vec3(in_norm.x, -in_norm.y, in_norm.z)
         * inverse(transpose(mat3(ubo_obj.model)));
+    gl_Position = 1
+        * ubo_camera.view_proj
+        * vec4(vert_pos_inv.x, -vert_pos_inv.y, vert_pos_inv.z, 1.0);
 }

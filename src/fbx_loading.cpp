@@ -86,13 +86,24 @@ fn fbxvec_to_glmvec(FbxVector4 vec)->glm::vec3 {
       static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&vec)));
 }
 
+fn rowmaj_to_colmaj(lava::mat4 row_mat)->lava::mat4 {
+  lava::mat4 col_mat;
+  for (size_t i = 0; i < 4; i++) {
+    for (size_t j = 0; j < 4; j++) {
+      col_mat[i] = row_mat[j];
+    }
+  }
+  return col_mat;
+}
+
 fn fbxmat_to_lavamat(FbxAMatrix fbx_mat)->lava::mat4 {
   lava::mat4 lava_mat;
-  // for (size_t i = 0; i < 4; i++) {
-  //   for (size_t j = 0; j < 4; j++) {
-  //     lava_mat[i][j] = fbx_mat.Get(i, j);
-  //   }
-  // }
-  lava_mat = static_cast<lava::mat4>(*reinterpret_cast<glm::dmat4 *>(&fbx_mat));
-  return lava_mat;
+  for (size_t i = 0; i < 4; i++) {
+    for (size_t j = 0; j < 4; j++) {
+      lava_mat[i][j] = fbx_mat.Get(i, j);
+    }
+  }
+  // lava_mat = static_cast<lava::mat4>(*reinterpret_cast<glm::dmat4
+  // *>(&fbx_mat));
+  return rowmaj_to_colmaj(lava_mat);
 }

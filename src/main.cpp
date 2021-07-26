@@ -1,7 +1,11 @@
+#define GLM_SWIZZLE
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include <fbxsdk.h>
 #include <imgui.h>
 
 #include <cstddef>
+#include <glm/gtx/string_cast.hpp>
 #include <iostream>
 #include <liblava/lava.hpp>
 #include <typeinfo>
@@ -15,7 +19,7 @@ using fbxsdk::FbxNode;
 enum RenderMode { mesh, skeleton };
 static RenderMode render_mode;  // Initialized in main()
 // static std::vector<AnimationClip> anim_clips;
-static size_t cur_keyframe = 0;
+static size_t cur_keyframe = 10;
 
 int main(int argc, char *argv[]) {
   // Load and read the mesh from an FBX.
@@ -117,27 +121,37 @@ int main(int argc, char *argv[]) {
   for (size_t i = 0; i < joints.size(); i++) {
     Joint cur_joint = joints[i];
     Joint par_joint = joints[cur_joint.parent_index];
-    FbxVector4 cur_origin = joints[i].transform.GetRow(3);
-    FbxVector4 par_origin = par_joint.transform.GetRow(3);
-    auto diff = par_origin - cur_origin;
+    // FbxVector4 cur_origin = joints[i].transform.GetRow(3);
+    // FbxVector4 par_origin = par_joint.transform.GetRow(3);
+    // auto diff = par_origin - cur_origin;
     lava::mat4 cur_mat = glm::identity<glm::dmat4x4>();
-    auto cur_vec = cur_origin + diff;
-    // FBX Matrices are column-major double-floating precision.
-    cur_mat[3] =
-        static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec));
+    lava::mat4 par_mat;
+    // auto cur_vec = cur_origin + diff;
+    // FBX Matrices are column-major double-precision floating-point.
+    // cur_mat[3] =
+    //     static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec));
 
-    bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(cur_origin),
-                     .color = lava::v4(1, 1, 1, 1)});
-    bone_mesh_data.vertices.push_back(
-        lava::vertex{.position = fbxvec_to_glmvec(par_origin),
-                     .color = lava::v4(1, 1, 1, 1)});
+    cur_mat = fbxmat_to_lavamat(joints[i].transform);
+    par_mat = fbxmat_to_lavamat(par_joint.transform);
+
+    bone_mesh_data.vertices.push_back(lava::vertex{
+        .position = lava::v3(0, 0, 0),  // fbxvec_to_glmvec(cur_origin),
+        .color = lava::v4(1, 1, 1, 1),
+    });
+    bone_mesh_data.vertices.push_back(lava::vertex{
+        .position = lava::v3(0, 0, 0),  // fbxvec_to_glmvec(par_origin),
+        .color = lava::v4(1, 1, 1, 1),
+    });
 
     bones_inverse_bind_mats.push_back(glm::inverse(cur_mat));
+    bones_inverse_bind_mats.push_back(glm::inverse(par_mat));
 
-    // TODO: Move into keyframes
+    // Push bind pose by default.
     bones_keyframe_cur_global_transforms.push_back(cur_mat);
+    bones_keyframe_cur_global_transforms.push_back(par_mat);
+
     bones_keyframe_next_global_transforms.push_back(cur_mat);
+    bones_keyframe_next_global_transforms.push_back(par_mat);
   }
 
   lava::mesh::ptr bones_mesh = lava::make_mesh();
@@ -235,7 +249,7 @@ int main(int argc, char *argv[]) {
   bone_keyframe_cur_mats_buffer.create_mapped(
       app.device, &bones_keyframe_cur_global_transforms[0],
       bones_keyframe_cur_global_transforms.size() * sizeof(lava::mat4),
-      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+      VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
   lava::buffer bone_keyframe_next_mats_buffer;
   bone_keyframe_next_mats_buffer.create_mapped(
@@ -485,6 +499,7 @@ int main(int argc, char *argv[]) {
     mesh_pipeline->on_process = nullptr;
     bone_pipeline->on_process = nullptr;
 
+    app.camera.update_view(dt, app.input.get_mouse_position());
     camera_buffer_data.view_proj = app.camera.get_view_projection();
     camera_buffer_data.cam_pos = app.camera.position;
 
@@ -502,22 +517,19 @@ int main(int argc, char *argv[]) {
     } else if (render_mode == skeleton) {
       memcpy(bone_keyframe_cur_mats_buffer.get_mapped_data(),
              &anim_clip.frames[cur_keyframe].transforms[0],
-             sizeof(lava::mat4) *
+             sizeof(anim_clip.frames[0].transforms[0]) *
                  anim_clip.frames[cur_keyframe].transforms.size());
       memcpy(bone_keyframe_next_mats_buffer.get_mapped_data(),
              &anim_clip.frames[cur_keyframe + 1].transforms[0],
-             sizeof(lava::mat4) *
+             sizeof(anim_clip.frames[0].transforms[0]) *
                  anim_clip.frames[cur_keyframe + 1].transforms.size());
 
       bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
         bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_global);
-        // bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_object, 2);
         bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_object, 1);
         bones_mesh->bind_draw(cmd_buf);
       };
     }
-
-    app.camera.update_view(dt, app.input.get_mouse_position());
     return true;
   };
 
