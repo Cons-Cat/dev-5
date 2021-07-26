@@ -8,14 +8,13 @@ set(CMAKE_ENABLE_EXPORTS ON)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_executable(${CMAKE_PROJECT_NAME} src/main.cpp ${BACKWARD_ENABLE})
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/backward-cpp)
+  add_backward(${CMAKE_PROJECT_NAME})
 else()
   add_executable(${CMAKE_PROJECT_NAME} src/main.cpp)
 endif()
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/liblava ${CMAKE_CURRENT_BINARY_DIR}/liblava)
-
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/backward-cpp)
-add_backward(${CMAKE_PROJECT_NAME})
 
 target_sources(
   ${PROJECT_NAME} PRIVATE
@@ -27,17 +26,17 @@ target_sources(
   src/pipelines.cpp
 )
 
-if(WIN32)
-  set(FBX_LIB "C:/Program Files/Autodesk/FBX/FBX SDK/2019.0/include")
-  target_include_directories(${PROJECT_NAME} PRIVATE "${FBX_LIB}")
-  set_property(
-    TARGET ${PROJECT_NAME} PROPERTY
-    MSVC_RUNTIME_LIBRARY "MultiThreaded"
-  )
-  #set_property(TARGET ${PROJECT_NAME} PROPERTY
-  #VS_USER_PROPS "libfbxsdk-mt.lib")
-  #set_property(TARGET ${PROJECT_NAME} PROPERTY
-endif(WIN32)
+# if(WIN32)
+#   set(FBX_LIB "C:/Program Files/Autodesk/FBX/FBX SDK/2019.0/include")
+#   target_include_directories(${PROJECT_NAME} PRIVATE "${FBX_LIB}")
+#   set_property(
+#     TARGET ${PROJECT_NAME} PROPERTY
+#     MSVC_RUNTIME_LIBRARY "MultiThreaded"
+#   )
+#   #set_property(TARGET ${PROJECT_NAME} PROPERTY
+#   #VS_USER_PROPS "libfbxsdk-mt.lib")
+#   #set_property(TARGET ${PROJECT_NAME} PROPERTY
+# endif(WIN32)
 
 if(UNIX AND NOT APPLE)
   set(LINUX TRUE)
@@ -53,7 +52,6 @@ if(LINUX)
     target_link_libraries(${PROJECT_NAME} PUBLIC "${FBX_LIB}/lib/gcc/x64/release/libfbxsdk.a")
     message("RELEASE")
   endif()
-  message("LINUX")
 endif(LINUX)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE lava::app)
