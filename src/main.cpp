@@ -21,18 +21,17 @@ int main(int argc, char *argv[]) {
   // Load and read the mesh from an FBX.
   // std::string path = "../res/Teddy/Teddy_Idle.fbx";
   std::string path = "../res/Idle.fbx";
-  FbxManager *manager = FbxManager::Create();
-  FbxIOSettings *io_settings = FbxIOSettings::Create(manager, IOSROOT);
-  manager->SetIOSettings(io_settings);
-  FbxImporter *importer = FbxImporter::Create(manager, "");
-  FbxScene *scene = FbxScene::Create(manager, "");
-  success(importer->Initialize(path.c_str(), -1, manager->GetIOSettings()),
+  FbxManager *fbx_manager = FbxManager::Create();
+  FbxIOSettings *io_settings = FbxIOSettings::Create(fbx_manager, IOSROOT);
+  fbx_manager->SetIOSettings(io_settings);
+  FbxImporter *importer = FbxImporter::Create(fbx_manager, "");
+  FbxScene *scene = FbxScene::Create(fbx_manager, "");
+  success(importer->Initialize(path.c_str(), -1, fbx_manager->GetIOSettings()),
           "Failed to import");
   importer->Import(scene);
   importer->Destroy();
   FbxNode *root_node = scene->GetRootNode();
   lava::mesh_template_data loaded_data = find_fbx_mesh(root_node).value();
-  // manager->Destroy();
   std::cout << "Path: " << path << std::endl;
 
   // Load the skeleton.
@@ -522,5 +521,6 @@ int main(int argc, char *argv[]) {
     return true;
   };
 
+  fbx_manager->Destroy();
   return app.run();
 }
