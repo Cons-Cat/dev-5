@@ -19,7 +19,9 @@ using fbxsdk::FbxNode;
 enum RenderMode { mesh, skeleton };
 static RenderMode render_mode;  // Initialized in main()
 // static std::vector<AnimationClip> anim_clips;
-static size_t cur_keyframe = 10;
+static size_t current_keyframe_index = 0;
+static double current_keyframe_time;
+static bool animating = true;
 
 int main(int argc, char *argv[]) {
   // Load and read the mesh from an FBX.
@@ -142,7 +144,7 @@ int main(int argc, char *argv[]) {
   bones_mesh->add_data(bone_mesh_data);
   bones_mesh->create(app.device);
 
-  // Load keyframe.
+  // Load animation.
   auto fps = FbxTime::EMode::eFrames24;
   FbxAnimStack *anim_stack = scene->GetCurrentAnimationStack();
   FbxTimeSpan time_span = anim_stack->GetLocalTimeSpan();
@@ -151,6 +153,7 @@ int main(int argc, char *argv[]) {
   anim_clip.duration = real_time.GetFrameCount(fps);
 
   // Make an array of joint transforms for every keyframe in the animation clip.
+  // Start at 1, because 0 is the bind pose frame.
   for (double i = 1; i < anim_clip.duration; i++) {
     Keyframe current_keyframe;
     real_time.SetFrame(i, fps);
@@ -444,6 +447,15 @@ int main(int argc, char *argv[]) {
       update_projection |= ImGui::DragFloat("aspect", &app.camera.aspect_ratio);
       if (update_projection) app.camera.update_projection();
     }
+    ImGui::Spacing();
+    if (ImGui::Button("Back Frame"))
+      current_keyframe_time = floor(current_keyframe_time - 1);
+    ImGui::SameLine();
+    if (ImGui::Button("Next Frame"))
+      current_keyframe_time = floor(current_keyframe_time + 1);
+    if (ImGui::Button("Pause / Play")) animating = !animating;
+    ImGui::Text("Keyframe %zu / %f", current_keyframe_index - 1,
+                anim_clip.duration - 1);
     app.draw_about();
     if (ImGui::IsItemHovered())
       ImGui::SetTooltip("enter = first person\nr = lock rotation\nz = lock z");
@@ -458,10 +470,10 @@ int main(int argc, char *argv[]) {
       render_mode = skeleton;
       return true;
     } else if (event.pressed(lava::key::_4)) {
-      cur_keyframe++;
+      current_keyframe_index++;
       return true;
     } else if (event.pressed(lava::key::_0)) {
-      cur_keyframe--;
+      current_keyframe_index--;
       return true;
     }
     return false;
@@ -472,6 +484,14 @@ int main(int argc, char *argv[]) {
     app.camera.update_projection();
     mesh_pipeline->on_process = nullptr;
     bone_pipeline->on_process = nullptr;
+
+    current_keyframe_time += dt * 10.f * animating;
+    if (current_keyframe_time > anim_clip.duration) {
+      current_keyframe_time = 1;
+    } else if (current_keyframe_time == 0) {
+      current_keyframe_time = anim_clip.duration;
+    }
+    current_keyframe_index = floor(current_keyframe_time);
 
     app.camera.update_view(dt, app.input.get_mouse_position());
     camera_buffer_data.view_proj = app.camera.get_view_projection();
@@ -490,13 +510,14 @@ int main(int argc, char *argv[]) {
       };
     } else if (render_mode == skeleton) {
       memcpy(bone_keyframe_cur_mats_buffer.get_mapped_data(),
-             &anim_clip.frames[cur_keyframe].transforms[0],
+             &anim_clip.frames[current_keyframe_index].transforms[0],
              sizeof(anim_clip.frames[0].transforms[0]) *
-                 anim_clip.frames[cur_keyframe].transforms.size());
-      memcpy(bone_keyframe_next_mats_buffer.get_mapped_data(),
-             &anim_clip.frames[cur_keyframe + 1].transforms[0],
-             sizeof(anim_clip.frames[0].transforms[0]) *
-                 anim_clip.frames[cur_keyframe + 1].transforms.size());
+                 anim_clip.frames[current_keyframe_index].transforms.size());
+      memcpy(
+          bone_keyframe_next_mats_buffer.get_mapped_data(),
+          &anim_clip.frames[current_keyframe_index + 1].transforms[0],
+          sizeof(anim_clip.frames[0].transforms[0]) *
+              anim_clip.frames[current_keyframe_index + 1].transforms.size());
 
       bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
         bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_global);
