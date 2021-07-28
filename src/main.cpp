@@ -1,4 +1,4 @@
-#define GLM_SWIZZLE
+#define GLM_FORCE_SWIZZLE
 #define GLM_ENABLE_EXPERIMENTAL
 
 #include <fbxsdk.h>
@@ -73,7 +73,6 @@ int main(int argc, char *argv[]) {
   success(root_skel, "Failed to find a root skeleton.");
 
   std::vector<Joint> joints;
-  joints.reserve(27);  // TODO: Figure out how to make this dynamic.
   auto make_joint = [&](FbxNode *node, int index) -> Joint {
     return Joint{.node = node,
                  .parent_index = index,
@@ -119,20 +118,13 @@ int main(int argc, char *argv[]) {
   std::vector<float> bones_weights;
 
   for (size_t i = 0; i < joints.size(); i++) {
-    Joint cur_joint = joints[i];
-    Joint par_joint = joints[cur_joint.parent_index];
-    // FbxVector4 cur_origin = joints[i].transform.GetRow(3);
-    // FbxVector4 par_origin = par_joint.transform.GetRow(3);
-    // auto diff = par_origin - cur_origin;
-    lava::mat4 cur_mat = glm::identity<glm::dmat4x4>();
-    lava::mat4 par_mat;
-    // auto cur_vec = cur_origin + diff;
+    Joint current_joint = joints[i];
+    Joint parent_joint = joints[current_joint.parent_index];
+    lava::mat4 current_matrix = glm::identity<glm::dmat4x4>();
+    lava::mat4 parent_matrix;
     // FBX Matrices are column-major double-precision floating-point.
-    // cur_mat[3] =
-    //     static_cast<glm::vec4>(*reinterpret_cast<glm::dvec4 *>(&cur_vec));
-
-    cur_mat = fbxmat_to_lavamat(joints[i].transform);
-    par_mat = fbxmat_to_lavamat(par_joint.transform);
+    current_matrix = fbxmat_to_lavamat(joints[i].transform);
+    parent_matrix = fbxmat_to_lavamat(parent_joint.transform);
 
     bone_mesh_data.vertices.push_back(lava::vertex{
         .position = lava::v3(0, 0, 0),  // fbxvec_to_glmvec(cur_origin),
@@ -143,15 +135,15 @@ int main(int argc, char *argv[]) {
         .color = lava::v4(1, 1, 1, 1),
     });
 
-    bones_inverse_bind_mats.push_back(glm::inverse(cur_mat));
-    bones_inverse_bind_mats.push_back(glm::inverse(par_mat));
+    bones_inverse_bind_mats.push_back(glm::inverse(current_matrix));
+    bones_inverse_bind_mats.push_back(glm::inverse(parent_matrix));
 
     // Push bind pose by default.
-    bones_keyframe_cur_global_transforms.push_back(cur_mat);
-    bones_keyframe_cur_global_transforms.push_back(par_mat);
+    bones_keyframe_cur_global_transforms.push_back(current_matrix);
+    bones_keyframe_cur_global_transforms.push_back(parent_matrix);
 
-    bones_keyframe_next_global_transforms.push_back(cur_mat);
-    bones_keyframe_next_global_transforms.push_back(par_mat);
+    bones_keyframe_next_global_transforms.push_back(current_matrix);
+    bones_keyframe_next_global_transforms.push_back(parent_matrix);
   }
 
   lava::mesh::ptr bones_mesh = lava::make_mesh();
@@ -159,35 +151,34 @@ int main(int argc, char *argv[]) {
   bones_mesh->create(app.device);
 
   // Load keyframe.
+  auto fps = FbxTime::EMode::eFrames24;
   FbxAnimStack *anim_stack = scene->GetCurrentAnimationStack();
   FbxTimeSpan time_span = anim_stack->GetLocalTimeSpan();
   FbxTime real_time = time_span.GetDuration();
   AnimationClip anim_clip{};
-  auto fps = FbxTime::EMode::eFrames24;
   anim_clip.duration = real_time.GetFrameCount(fps);
 
+  // Make an array of joint transforms for every keyframe in the animation clip.
   for (double i = 1; i < anim_clip.duration; i++) {
-    Keyframe cur_keyframe;
+    Keyframe current_keyframe;
     real_time.SetFrame(i, fps);
-    cur_keyframe.time = i;
-    cur_keyframe.joints.reserve(joints.size());
-    cur_keyframe.transforms.reserve(joints.size());
+    current_keyframe.time = i;
+    current_keyframe.joints.reserve(joints.size());
+    current_keyframe.transforms.reserve(joints.size());
     for (auto joint : joints) {
-      cur_keyframe.joints.push_back(Joint{
+      auto current_transform = joint.node->EvaluateGlobalTransform(real_time);
+      auto parent_transform = joints[joint.parent_index].node->EvaluateGlobalTransform(real_time);
+      current_keyframe.joints.push_back(Joint{
           .node = joint.node,
           .parent_index = joint.parent_index,
-          .transform = joint.node->EvaluateGlobalTransform(real_time),
+          .transform = current_transform,
       });
-      // auto new_mat = glm::mat4(1);
-      // new_mat[3] = glm::vec4(
-      //     fbxvec_to_glmvec(
-      //         joint.node->EvaluateGlobalTransform(real_time).GetColumn(3)),
-      //     1);
-      // cur_keyframe.transforms.push_back(new_mat);
-      cur_keyframe.transforms.push_back(
-          fbxmat_to_lavamat(joint.node->EvaluateGlobalTransform(real_time)));
+      current_keyframe.transforms.push_back(
+          fbxmat_to_lavamat(current_transform));
+      current_keyframe.transforms.push_back(
+          fbxmat_to_lavamat(parent_transform));
     }
-    anim_clip.frames.push_back(cur_keyframe);
+    anim_clip.frames.push_back(current_keyframe);
   }
 
   // Load textures
