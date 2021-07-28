@@ -33,7 +33,6 @@ out gl_PerVertex {
 
 void main() {
     int idx = gl_VertexIndex;
-    // int idx = gl_VertexIndex / 2;
 
     mat4 inverse_bind_cur;
     for (int i = 0; i < inverse_bind.length(); i++) {
@@ -63,8 +62,7 @@ void main() {
     gl_Position = 1
         * global_transform_cur
         // * inverse_bind_cur
-        // * vec4(in_pos.x, in_pos.y, in_pos.z, 1.0);
-        * vec4(0, 0, 0, 1);
+        * vec4(in_pos.x, in_pos.y, in_pos.z, 1.0);
     gl_Position = 1
         * ubo_camera.view_proj
         * vec4(gl_Position.x, -gl_Position.y, gl_Position.z, 1.0);

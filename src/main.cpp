@@ -119,31 +119,23 @@ int main(int argc, char *argv[]) {
 
   for (size_t i = 0; i < joints.size(); i++) {
     Joint current_joint = joints[i];
-    Joint parent_joint = joints[current_joint.parent_index];
     lava::mat4 current_matrix = glm::identity<glm::dmat4x4>();
-    lava::mat4 parent_matrix;
     // FBX Matrices are column-major double-precision floating-point.
     current_matrix = fbxmat_to_lavamat(joints[i].transform);
-    parent_matrix = fbxmat_to_lavamat(parent_joint.transform);
 
     bone_mesh_data.vertices.push_back(lava::vertex{
-        .position = lava::v3(0, 0, 0),  // fbxvec_to_glmvec(cur_origin),
+        .position = lava::v3(0, 0, 0),
         .color = lava::v4(1, 1, 1, 1),
     });
-    bone_mesh_data.vertices.push_back(lava::vertex{
-        .position = lava::v3(0, 0, 0),  // fbxvec_to_glmvec(par_origin),
-        .color = lava::v4(1, 1, 1, 1),
-    });
+    bone_mesh_data.indices.push_back(i);
+    bone_mesh_data.indices.push_back(current_joint.parent_index);
 
     bones_inverse_bind_mats.push_back(glm::inverse(current_matrix));
-    bones_inverse_bind_mats.push_back(glm::inverse(parent_matrix));
 
     // Push bind pose by default.
     bones_keyframe_cur_global_transforms.push_back(current_matrix);
-    bones_keyframe_cur_global_transforms.push_back(parent_matrix);
 
     bones_keyframe_next_global_transforms.push_back(current_matrix);
-    bones_keyframe_next_global_transforms.push_back(parent_matrix);
   }
 
   lava::mesh::ptr bones_mesh = lava::make_mesh();
@@ -163,20 +155,11 @@ int main(int argc, char *argv[]) {
     Keyframe current_keyframe;
     real_time.SetFrame(i, fps);
     current_keyframe.time = i;
-    current_keyframe.joints.reserve(joints.size());
     current_keyframe.transforms.reserve(joints.size());
     for (auto joint : joints) {
       auto current_transform = joint.node->EvaluateGlobalTransform(real_time);
-      auto parent_transform = joints[joint.parent_index].node->EvaluateGlobalTransform(real_time);
-      current_keyframe.joints.push_back(Joint{
-          .node = joint.node,
-          .parent_index = joint.parent_index,
-          .transform = current_transform,
-      });
       current_keyframe.transforms.push_back(
           fbxmat_to_lavamat(current_transform));
-      current_keyframe.transforms.push_back(
-          fbxmat_to_lavamat(parent_transform));
     }
     anim_clip.frames.push_back(current_keyframe);
   }
