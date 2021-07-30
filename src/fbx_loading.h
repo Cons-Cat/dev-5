@@ -9,9 +9,8 @@ typedef struct {
   lava::v4 color;
   lava::v2 uv;
   lava::v3 normal;
-  // alignas(16) std::array<int, 4> weight_indices;
-  // alignas(16)
-  // int weight_indices[4];
+  std::array<std::uint32_t, 4> weight_indices;
+  lava::v4 bone_weights;
 } skin_vertex;
 
 fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2;
@@ -21,6 +20,7 @@ fn read_mesh(FbxNode *node)->lava::mesh_template_data<skin_vertex>;
 fn find_fbx_mesh(FbxNode *node)
     ->std::optional<lava::mesh_template_data<skin_vertex>>;
 
+// TODO: Is the matrix here redundant?
 typedef struct {
   FbxNode *node;
   int parent_index;

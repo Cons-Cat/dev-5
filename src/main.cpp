@@ -368,9 +368,9 @@ int main(int argc, char *argv[]) {
 
       app.device->vkUpdateDescriptorSets({
           descriptor_global,
-          descriptor_global_bone,
           descriptor_textures,
           descriptor_object,
+          descriptor_global_bone,
           descriptor_object_bone_model,
           descriptor_object_bone_inversebind,
           descriptor_object_bone_keyframe_trans_curr,
@@ -396,9 +396,12 @@ int main(int argc, char *argv[]) {
                 {2, 0, VK_FORMAT_R32G32_SFLOAT, (offsetof(skin_vertex, uv))},
                 {3, 0, VK_FORMAT_R32G32B32_SFLOAT,
                  (offsetof(skin_vertex, normal))},
-                // {4, 0, VK_FORMAT_R32G32B32A32_SINT,
-                //  (offsetof(skin_vertex, weight_indices))},
-            });
+                {4, 0, VK_FORMAT_R32G32B32A32_UINT,
+                 (offsetof(skin_vertex, weight_indices))},
+                {5, 0, VK_FORMAT_R32G32B32A32_SFLOAT,
+                 (offsetof(skin_vertex, bone_weights))},
+            },
+            VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
       }
     }
 
@@ -427,7 +430,7 @@ int main(int argc, char *argv[]) {
     return true;
   };
 
-  app.imgui.on_draw = [&]() {
+ app.imgui.on_draw = [&]() {
     ImGui::SetNextWindowPos({30, 30}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({330, 485}, ImGuiCond_FirstUseEver);
     ImGui::Begin(app.get_name());

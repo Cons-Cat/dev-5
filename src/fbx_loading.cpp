@@ -41,6 +41,8 @@ fn read_mesh(FbxNode *node)->lava::mesh_template_data<skin_vertex> {
                           ctrl_index)[2]),
               },
           // TODO: deserialize weight
+          .weight_indices = {0, 0, 0, 0},
+          .bone_weights = {0, 0, 0, 0},
       });
 
       // Mirror UVs.
