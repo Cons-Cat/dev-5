@@ -249,9 +249,13 @@ int main(int argc, char *argv[]) {
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
   lava::graphics_pipeline::ptr mesh_pipeline;
-  lava::descriptor::ptr mesh_descriptor_layout;
+  lava::descriptor::ptr mesh_descriptor_layout_global;
+  lava::descriptor::ptr mesh_descriptor_layout_textures;
+  lava::descriptor::ptr mesh_descriptor_layout_object;
   lava::pipeline_layout::ptr mesh_pipeline_layout;
-  VkDescriptorSet mesh_descriptor_set = VK_NULL_HANDLE;
+  VkDescriptorSet mesh_descriptor_set_global = VK_NULL_HANDLE;
+  VkDescriptorSet mesh_descriptor_set_textures = VK_NULL_HANDLE;
+  VkDescriptorSet mesh_descriptor_set_object = VK_NULL_HANDLE;
 
   lava::graphics_pipeline::ptr bone_pipeline;
   lava::pipeline_layout::ptr bone_pipeline_layout;
@@ -271,12 +275,21 @@ int main(int argc, char *argv[]) {
   app.on_create = [&]() {
     // TODO: Push descriptors to this, then update all here.
     // std::vector<VkWriteDescriptorSet> descriptor_writes;
-    mesh_descriptor_layout = create_mesh_descriptor_layout(app);
+    auto [mesh_descriptor_layout_global, mesh_descriptor_layout_textures,
+          mesh_descriptor_layout_object] = create_mesh_descriptor_layout(app);
+    // mesh_descriptor_layout = create_mesh_descriptor_layout(app);
     mesh_pipeline_layout = lava::make_pipeline_layout();
-    mesh_pipeline_layout->add(mesh_descriptor_layout);
+    mesh_pipeline_layout->add(mesh_descriptor_layout_global);
+    mesh_pipeline_layout->add(mesh_descriptor_layout_textures);
+    mesh_pipeline_layout->add(mesh_descriptor_layout_object);
     mesh_pipeline_layout->create(app.device);
-    mesh_descriptor_set =
-        mesh_descriptor_layout->allocate(descriptor_pool->get());
+    mesh_descriptor_set_global =
+        mesh_descriptor_layout_global->allocate(descriptor_pool->get());
+    mesh_descriptor_set_textures =
+        mesh_descriptor_layout_textures->allocate(descriptor_pool->get());
+    mesh_descriptor_set_object =
+        mesh_descriptor_layout_object->allocate(descriptor_pool->get());
+
     auto [bone_descriptor_layout_global, bone_descriptor_layout_object] =
         create_bone_descriptors_layout(app);
     bone_pipeline_layout = lava::make_pipeline_layout();
@@ -294,7 +307,7 @@ int main(int argc, char *argv[]) {
     {
       VkWriteDescriptorSet const descriptor_global{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-          .dstSet = mesh_descriptor_set,
+          .dstSet = mesh_descriptor_set_global,
           .dstBinding = 0,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -302,16 +315,16 @@ int main(int argc, char *argv[]) {
       };
       VkWriteDescriptorSet const descriptor_textures{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-          .dstSet = mesh_descriptor_set,
-          .dstBinding = 1,
+          .dstSet = mesh_descriptor_set_textures,
+          .dstBinding = 0,
           .descriptorCount = 4,
           .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
           .pImageInfo = &textures_descriptor_info.front(),
       };
       VkWriteDescriptorSet const descriptor_object{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-          .dstSet = mesh_descriptor_set,
-          .dstBinding = 2,
+          .dstSet = mesh_descriptor_set_object,
+          .dstBinding = 0,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
           .pBufferInfo = object_buffer.get_descriptor_info(),
@@ -430,7 +443,7 @@ int main(int argc, char *argv[]) {
     return true;
   };
 
- app.imgui.on_draw = [&]() {
+  app.imgui.on_draw = [&]() {
     ImGui::SetNextWindowPos({30, 30}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({330, 485}, ImGuiCond_FirstUseEver);
     ImGui::Begin(app.get_name());
@@ -494,14 +507,17 @@ int main(int argc, char *argv[]) {
     camera_buffer_data.cam_pos = app.camera.position;
 
     memcpy(camera_buffer.get_mapped_data(), &camera_buffer_data,
-           sizeof(camera_buffer_data));
+           // sizeof(camera_buffer_data));
+           sizeof(lava::mat4) + sizeof(app.camera.position));
 
     if (render_mode == mesh) {
       memcpy(object_buffer.get_mapped_data(), &mesh_model_mat,
              sizeof(mesh_model_mat));
 
       mesh_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
-        mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set);
+        mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set_global);
+        mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set_textures, 1);
+        mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set_object, 2);
         made_mesh->bind_draw(cmd_buf);
       };
     } else if (render_mode == skeleton) {

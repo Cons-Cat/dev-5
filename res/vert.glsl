@@ -7,13 +7,13 @@ layout(location = 3) in vec3 in_norm;
 layout(location = 4) in uvec4 in_weight_indices;
 layout(location = 5) in vec4 in_bone_weights;
 
-layout(binding = 0) uniform Ubo_Global {
+layout(set = 0, binding = 0) uniform Ubo_Global {
     mat4 view_proj;
     vec3 pos;
 }
 ubo_camera;
 
-layout(binding = 2) uniform Ubo_Object {
+layout(set = 2, binding = 0) uniform Ubo_Object {
     mat4 model;
 }
 ubo_obj;

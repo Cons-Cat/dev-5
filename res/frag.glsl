@@ -6,7 +6,7 @@ layout(binding = 0) uniform Ubo_Global {
 }
 ubo_camera;
 
-layout(binding = 1) uniform sampler2D texture_maps[4];
+layout(set = 1, binding = 0) uniform sampler2D texture_maps[4];
 
 layout(location = 0) in vec4 in_col;
 layout(location = 1) in vec2 in_uv;
