@@ -432,44 +432,19 @@ int main(int argc, char *argv[]) {
     ImGui::SetNextWindowPos({30, 30}, ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowSize({330, 485}, ImGuiCond_FirstUseEver);
     ImGui::Begin(app.get_name());
-    ImGui::SameLine(0.f, 15.f);
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::SameLine();
     ImGui::Separator();
-    ImGui::Spacing();
-    ImGui::SameLine(0.f, 15.f);
-    bool camera_active = app.camera.activated();
-    if (ImGui::Checkbox("active", &camera_active))
-      app.camera.set_active(camera_active);
-    ImGui::SameLine(0.f, 10.f);
-    bool first_person = app.camera.mode == lava::camera_mode::first_person;
-    if (ImGui::Checkbox("first person##camera", &first_person))
-      app.camera.mode = first_person ? lava::camera_mode::first_person
-                                     : lava::camera_mode::look_at;
     ImGui::Spacing();
     ImGui::DragFloat3("position##camera", (lava::r32 *)&app.camera.position,
                       0.01f);
     ImGui::DragFloat3("rotation##camera", (lava::r32 *)&app.camera.rotation,
                       0.1f);
     ImGui::Spacing();
-    ImGui::Checkbox("lock rotation##camera", &app.camera.lock_rotation);
-    ImGui::SameLine(0.f, 10.f);
-    ImGui::Checkbox("lock z##camera", &app.camera.lock_z);
-    ImGui::Spacing();
     if (ImGui::CollapsingHeader("speed")) {
       ImGui::DragFloat("movement##camera", &app.camera.movement_speed, 0.1f);
       ImGui::DragFloat("rotation##camera", &app.camera.rotation_speed, 0.1f);
       ImGui::DragFloat("zoom##camera", &app.camera.zoom_speed, 0.1f);
     }
-    if (ImGui::CollapsingHeader("projection")) {
-      bool update_projection = false;
-      update_projection |= ImGui::DragFloat("fov", &app.camera.fov);
-      update_projection |= ImGui::DragFloat("z near", &app.camera.z_near);
-      update_projection |= ImGui::DragFloat("z far", &app.camera.z_far);
-      update_projection |= ImGui::DragFloat("aspect", &app.camera.aspect_ratio);
-      if (update_projection) app.camera.update_projection();
-    }
+    ImGui::Separator();
     ImGui::Spacing();
     if (ImGui::Button("Back Frame"))
       current_keyframe_time = floor(current_keyframe_time - 1);
@@ -479,9 +454,6 @@ int main(int argc, char *argv[]) {
     if (ImGui::Button("Pause / Play")) animating = !animating;
     ImGui::Text("Keyframe %zu / %f", current_keyframe_index - 1,
                 anim_clip.duration - 1);
-    app.draw_about();
-    if (ImGui::IsItemHovered())
-      ImGui::SetTooltip("enter = first person\nr = lock rotation\nz = lock z");
     ImGui::End();
   };
 
