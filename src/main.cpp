@@ -41,7 +41,6 @@ int main(int argc, char *argv[]) {
   std::cout << "Path: " << path << std::endl;
 
   // Load the skeleton.
-  // Keyframe keyframe;
   std::vector<FbxPose *> poses;
   // Fill out poses.
   find_fbx_poses(root_node, &poses);
@@ -108,6 +107,10 @@ int main(int argc, char *argv[]) {
 
   app.camera.position = lava::v3(0.0f, -4.036f, 8.304f);
   app.camera.rotation = lava::v3(-15, 0, 0);
+  app.camera.set_movement_keys({lava::key::m},
+                               {lava::key::n, lava::key::left_control},
+                               {lava::key::s, lava::key::left_super},
+                               {lava::key::t, lava::key::left_alt});
   lava::mat4 mesh_model_mat = lava::mat4(1.0);  // This is an identity matrix.
 
   // Bones
@@ -115,8 +118,8 @@ int main(int argc, char *argv[]) {
   lava::mesh_data bone_mesh_data;
   // TODO: Reserve size of vectors.
   std::vector<lava::mat4> bones_inverse_bind_mats;
-  std::vector<lava::mat4> bones_keyframe_cur_global_transforms;
-  std::vector<lava::mat4> bones_keyframe_next_global_transforms;
+  std::vector<Transform> bones_keyframe_cur_global_transforms;
+  std::vector<Transform> bones_keyframe_next_global_transforms;
   std::vector<float> bones_weights;
 
   for (size_t i = 0; i < joints.size(); i++) {
@@ -124,6 +127,8 @@ int main(int argc, char *argv[]) {
     lava::mat4 current_matrix = glm::identity<glm::dmat4x4>();
     // FBX Matrices are column-major double-precision floating-point.
     current_matrix = fbxmat_to_lavamat(joints[i].transform);
+    glm::quat current_quaternion = glm::quat_cast(current_matrix);
+    lava::v3 current_translation = current_matrix[3];
 
     bone_mesh_data.vertices.push_back(lava::vertex{
         .position = lava::v3(0, 0, 0),
@@ -135,9 +140,10 @@ int main(int argc, char *argv[]) {
     bones_inverse_bind_mats.push_back(glm::inverse(current_matrix));
 
     // Push bind pose by default.
-    bones_keyframe_cur_global_transforms.push_back(current_matrix);
-
-    bones_keyframe_next_global_transforms.push_back(current_matrix);
+    bones_keyframe_cur_global_transforms.push_back(
+        Transform{current_translation, current_quaternion});
+    bones_keyframe_next_global_transforms.push_back(
+        Transform{current_translation, current_quaternion});
   }
 
   lava::mesh::ptr bones_mesh = lava::make_mesh();
@@ -160,9 +166,12 @@ int main(int argc, char *argv[]) {
     current_keyframe.time = i;
     current_keyframe.transforms.reserve(joints.size());
     for (auto joint : joints) {
-      auto current_transform = joint.node->EvaluateGlobalTransform(real_time);
+      lava::mat4 current_matrix =
+          fbxmat_to_lavamat(joint.node->EvaluateGlobalTransform(real_time));
+      glm::quat current_quaternion = glm::quat_cast(current_matrix);
+      lava::v3 current_translation = current_matrix[3];
       current_keyframe.transforms.push_back(
-          fbxmat_to_lavamat(current_transform));
+          Transform{current_translation, current_quaternion});
     }
     anim_clip.frames.push_back(current_keyframe);
   }
@@ -222,16 +231,16 @@ int main(int argc, char *argv[]) {
       bones_inverse_bind_mats.size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-  lava::buffer bone_keyframe_cur_mats_buffer;
-  bone_keyframe_cur_mats_buffer.create_mapped(
+  lava::buffer bone_keyframe_cur_trans_buffer;
+  bone_keyframe_cur_trans_buffer.create_mapped(
       app.device, &bones_keyframe_cur_global_transforms[0],
-      bones_keyframe_cur_global_transforms.size() * sizeof(lava::mat4),
+      bones_keyframe_cur_global_transforms.size() * sizeof(Transform),
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-  lava::buffer bone_keyframe_next_mats_buffer;
-  bone_keyframe_next_mats_buffer.create_mapped(
+  lava::buffer bone_keyframe_next_trans_buffer;
+  bone_keyframe_next_trans_buffer.create_mapped(
       app.device, &bones_keyframe_next_global_transforms[0],
-      bones_keyframe_next_global_transforms.size() * sizeof(lava::mat4),
+      bones_keyframe_next_global_transforms.size() * sizeof(Transform),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
   lava::buffer bone_weights_buffer;
@@ -342,7 +351,7 @@ int main(int argc, char *argv[]) {
           .dstBinding = 2,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .pBufferInfo = bone_keyframe_cur_mats_buffer.get_descriptor_info(),
+          .pBufferInfo = bone_keyframe_cur_trans_buffer.get_descriptor_info(),
       };
       VkWriteDescriptorSet const descriptor_object_bone_keyframe_trans_cur{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -350,7 +359,7 @@ int main(int argc, char *argv[]) {
           .dstBinding = 3,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .pBufferInfo = bone_keyframe_cur_mats_buffer.get_descriptor_info(),
+          .pBufferInfo = bone_keyframe_cur_trans_buffer.get_descriptor_info(),
       };
       VkWriteDescriptorSet const descriptor_object_bone_weights{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -509,12 +518,12 @@ int main(int argc, char *argv[]) {
         made_mesh->bind_draw(cmd_buf);
       };
     } else if (render_mode == skeleton) {
-      memcpy(bone_keyframe_cur_mats_buffer.get_mapped_data(),
+      memcpy(bone_keyframe_cur_trans_buffer.get_mapped_data(),
              &anim_clip.frames[current_keyframe_index].transforms[0],
              sizeof(anim_clip.frames[0].transforms[0]) *
                  anim_clip.frames[current_keyframe_index].transforms.size());
       memcpy(
-          bone_keyframe_next_mats_buffer.get_mapped_data(),
+          bone_keyframe_next_trans_buffer.get_mapped_data(),
           &anim_clip.frames[current_keyframe_index + 1].transforms[0],
           sizeof(anim_clip.frames[0].transforms[0]) *
               anim_clip.frames[current_keyframe_index + 1].transforms.size());

@@ -1,6 +1,8 @@
-#include "includes.h"
 #include <fbxsdk.h>
+
 #include <liblava/lava.hpp>
+
+#include "includes.h"
 
 fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2;
 
@@ -15,9 +17,13 @@ typedef struct {
 } Joint;
 
 typedef struct {
+  lava::v3 translation;
+  alignas(16) glm::quat orientation;
+} Transform;
+
+typedef struct {
   double time;
-  std::vector<Joint> joints;
-  std::vector<lava::mat4> transforms;
+  std::vector<Transform> transforms;
 } Keyframe;
 
 typedef struct {
