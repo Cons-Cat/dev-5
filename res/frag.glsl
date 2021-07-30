@@ -30,7 +30,7 @@ void main() {
     vec3 specular_color = texture(texture_maps[3], in_uv).rgb;
 
     vec3 normal = (in_norm.xyz);
-    float light_intensity = 2;
+    float light_intensity = 0.12;
     // Higher should be smaller highlight
     shininess = 1.32*1;
 
