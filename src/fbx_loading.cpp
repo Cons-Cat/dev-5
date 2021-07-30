@@ -10,8 +10,8 @@ fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2 {
   return uv;
 }
 
-fn read_mesh(FbxNode *node)->lava::mesh_data {
-  lava::mesh_template_data output;
+fn read_mesh(FbxNode *node)->lava::mesh_template_data<skin_vertex> {
+  lava::mesh_template_data<skin_vertex> output;
   FbxMesh *mesh = node->GetMesh();
   FbxSkin *skin = (FbxSkin *)mesh->GetDeformer(0, FbxDeformer::eSkin);
   size_t tri_count = mesh->GetPolygonCount();
@@ -19,26 +19,30 @@ fn read_mesh(FbxNode *node)->lava::mesh_data {
   for (size_t i = 0; i < tri_count; i++) {
     for (size_t j = 0; j < 3; j++) {
       size_t ctrl_index = mesh->GetPolygonVertex(i, j);
-      output.vertices.push_back(
-          lava::vertex{.position =
-                           lava::v3{
-                               static_cast<float>(ctrl_points[ctrl_index][0]),
-                               static_cast<float>(ctrl_points[ctrl_index][1]),
-                               static_cast<float>(ctrl_points[ctrl_index][2]),
-                           },
-                       .color = lava::v4{1, 1, 1, 1},
-                       .uv = read_uv(mesh, mesh->GetTextureUVIndex(i, j)),
-                       .normal = lava::v3{
-                           static_cast<float>(
-                               mesh->GetElementNormal()->GetDirectArray().GetAt(
-                                   ctrl_index)[0]),
-                           static_cast<float>(
-                               mesh->GetElementNormal()->GetDirectArray().GetAt(
-                                   ctrl_index)[1]),
-                           static_cast<float>(
-                               mesh->GetElementNormal()->GetDirectArray().GetAt(
-                                   ctrl_index)[2]),
-                       }});
+      output.vertices.push_back(skin_vertex{
+          .position =
+              lava::v3{
+                  static_cast<float>(ctrl_points[ctrl_index][0]),
+                  static_cast<float>(ctrl_points[ctrl_index][1]),
+                  static_cast<float>(ctrl_points[ctrl_index][2]),
+              },
+          .color = lava::v4{1, 1, 1, 1},
+          .uv = read_uv(mesh, mesh->GetTextureUVIndex(i, j)),
+          .normal =
+              lava::v3{
+                  static_cast<float>(
+                      mesh->GetElementNormal()->GetDirectArray().GetAt(
+                          ctrl_index)[0]),
+                  static_cast<float>(
+                      mesh->GetElementNormal()->GetDirectArray().GetAt(
+                          ctrl_index)[1]),
+                  static_cast<float>(
+                      mesh->GetElementNormal()->GetDirectArray().GetAt(
+                          ctrl_index)[2]),
+              },
+          // TODO: deserialize weight
+      });
+
       // Mirror UVs.
       output.vertices[output.vertices.size() - 1].uv =
           lava::v2{output.vertices[output.vertices.size() - 1].uv.x,
@@ -48,7 +52,8 @@ fn read_mesh(FbxNode *node)->lava::mesh_data {
   return output;
 }
 
-fn find_fbx_mesh(FbxNode *node)->std::optional<lava::mesh_data> {
+fn find_fbx_mesh(FbxNode *node)
+    ->std::optional<lava::mesh_template_data<skin_vertex>> {
   FbxNodeAttribute *attribute = node->GetNodeAttribute();
   if (attribute != nullptr) {
     if (attribute->GetAttributeType() == FbxNodeAttribute::eMesh) {
@@ -114,8 +119,7 @@ fn fbxmat_to_lavamat(FbxAMatrix fbx_mat)->lava::mat4 {
   //     lava_mat[i][j] = fbx_mat.Get(i, j);
   //   }
   // }
-  lava_mat = static_cast<lava::mat4>(*reinterpret_cast<glm::dmat4
-  *>(&fbx_mat));
-  return // rowmaj_to_colmaj
-    (lava_mat);
+  lava_mat = static_cast<lava::mat4>(*reinterpret_cast<glm::dmat4 *>(&fbx_mat));
+  return  // rowmaj_to_colmaj
+      (lava_mat);
 }

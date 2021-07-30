@@ -37,8 +37,8 @@ int main(int argc, char *argv[]) {
   importer->Import(scene);
   importer->Destroy();
   FbxNode *root_node = scene->GetRootNode();
-  lava::mesh_template_data loaded_data = find_fbx_mesh(root_node).value();
-  std::cout << "Path: " << path << std::endl;
+  lava::mesh_template_data<skin_vertex> loaded_data =
+      find_fbx_mesh(root_node).value();
 
   // Load the skeleton.
   std::vector<FbxPose *> poses;
@@ -211,13 +211,13 @@ int main(int argc, char *argv[]) {
       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
 
   // Load mesh.
-  lava::mesh::ptr made_mesh = lava::make_mesh();
+  auto made_mesh = lava::make_mesh<skin_vertex>();
   made_mesh->add_data(loaded_data);
+  made_mesh->create(app.device);
   lava::buffer object_buffer;
   object_buffer.create_mapped(app.device, &mesh_model_mat,
                               sizeof(mesh_model_mat),
                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-  made_mesh->create(app.device);
 
   // Make bone buffers
   lava::buffer bone_object_buffer;
@@ -269,10 +269,6 @@ int main(int argc, char *argv[]) {
                           90);
 
   app.on_create = [&]() {
-    std::cout
-        << app.device->get_properties().limits.minUniformBufferOffsetAlignment
-        << '\n';
-
     // TODO: Push descriptors to this, then update all here.
     // std::vector<VkWriteDescriptorSet> descriptor_writes;
     mesh_descriptor_layout = create_mesh_descriptor_layout(app);
@@ -390,8 +386,19 @@ int main(int argc, char *argv[]) {
             shader_module_t("../res/vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
         shader_modules.push_back(
             shader_module_t("../res/frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
-        mesh_pipeline =
-            create_graphics_pipeline(app, mesh_pipeline_layout, shader_modules);
+        mesh_pipeline = create_graphics_pipeline<skin_vertex>(
+            app, mesh_pipeline_layout, shader_modules,
+            {
+                {0, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                 (offsetof(skin_vertex, position))},
+                {1, 0, VK_FORMAT_R32G32B32A32_SFLOAT,
+                 (offsetof(skin_vertex, color))},
+                {2, 0, VK_FORMAT_R32G32_SFLOAT, (offsetof(skin_vertex, uv))},
+                {3, 0, VK_FORMAT_R32G32B32_SFLOAT,
+                 (offsetof(skin_vertex, normal))},
+                // {4, 0, VK_FORMAT_R32G32B32A32_SINT,
+                //  (offsetof(skin_vertex, weight_indices))},
+            });
       }
     }
 
@@ -403,14 +410,20 @@ int main(int argc, char *argv[]) {
           shader_module_t("../res/line_vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
       shader_modules.push_back(shader_module_t("../res/line_frag.spv",
                                                VK_SHADER_STAGE_FRAGMENT_BIT));
-      bone_pipeline =
-          create_graphics_pipeline(app, bone_pipeline_layout, shader_modules,
-                                   VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
+      bone_pipeline = create_graphics_pipeline<lava::vertex>(
+          app, bone_pipeline_layout, shader_modules,
+          {
+              {0, 0, VK_FORMAT_R32G32B32_SFLOAT,
+               (offsetof(lava::vertex, position))},
+              {1, 0, VK_FORMAT_R32G32B32A32_SFLOAT,
+               (offsetof(lava::vertex, color))},
+          },
+          VK_PRIMITIVE_TOPOLOGY_LINE_LIST);
     }
 
     // Default to rendering the mesh.
-    // render_mode = mesh;
-    render_mode = skeleton;
+    render_mode = mesh;
+    // render_mode = skeleton;
     return true;
   };
 
