@@ -248,6 +248,11 @@ int main(int argc, char *argv[]) {
                                     1 * sizeof(float),
                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
+  lava::buffer bone_animation_keyframe_buffer;
+  bone_animation_keyframe_buffer.create_mapped(
+      app.device, &current_keyframe_time, 1 * sizeof(float),
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+
   lava::graphics_pipeline::ptr mesh_pipeline;
   lava::descriptor::ptr mesh_descriptor_layout;
   lava::pipeline_layout::ptr mesh_pipeline_layout;
@@ -337,7 +342,7 @@ int main(int argc, char *argv[]) {
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
           .pBufferInfo = bone_object_buffer.get_descriptor_info(),
       };
-      VkWriteDescriptorSet const descriptor_object_bone_invbind{
+      VkWriteDescriptorSet const descriptor_object_bone_inversebind{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
           .dstSet = bone_descriptor_set_object,
           .dstBinding = 1,
@@ -369,6 +374,14 @@ int main(int argc, char *argv[]) {
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
           .pBufferInfo = bone_weights_buffer.get_descriptor_info(),
       };
+      VkWriteDescriptorSet const descriptor_object_bone_keyframe_time{
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstSet = bone_descriptor_set_object,
+          .dstBinding = 5,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .pBufferInfo = bone_animation_keyframe_buffer.get_descriptor_info(),
+      };
 
       app.device->vkUpdateDescriptorSets({
           descriptor_global,
@@ -376,10 +389,11 @@ int main(int argc, char *argv[]) {
           descriptor_textures,
           descriptor_object,
           descriptor_object_bone_model,
-          descriptor_object_bone_invbind,
+          descriptor_object_bone_inversebind,
           descriptor_object_bone_keyframe_trans_next,
           descriptor_object_bone_keyframe_trans_cur,
           descriptor_object_bone_weights,
+          descriptor_object_bone_keyframe_time,
       });
 
       // Loading shaders
@@ -478,12 +492,6 @@ int main(int argc, char *argv[]) {
     } else if (event.pressed(lava::key::_2)) {
       render_mode = skeleton;
       return true;
-    } else if (event.pressed(lava::key::_4)) {
-      current_keyframe_index++;
-      return true;
-    } else if (event.pressed(lava::key::_0)) {
-      current_keyframe_index--;
-      return true;
     }
     return false;
   });
@@ -528,8 +536,13 @@ int main(int argc, char *argv[]) {
           sizeof(anim_clip.frames[0].transforms[0]) *
               anim_clip.frames[current_keyframe_index + 1].transforms.size());
 
+      memcpy(bone_animation_keyframe_buffer.get_mapped_data(),
+             &current_keyframe_time, sizeof(float));
+
       bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
         bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_global);
+        // TODO: Figure out how to make this work with binding at 2 instead
+        // of 1:
         bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_object, 1);
         bones_mesh->bind_draw(cmd_buf);
       };

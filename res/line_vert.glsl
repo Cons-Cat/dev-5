@@ -64,6 +64,9 @@ layout(set = 1, binding = 3) readonly buffer Ssbo_Object_KeyframeTrans_Next {
 layout(set = 1, binding = 4) readonly buffer Ssbo_Object_Weights {
     float weight[];
 };
+layout(set = 1, binding = 5) readonly buffer Ssbo_Object_Keyframe {
+    float keyframe;
+};
 
 layout(location = 0) out vec4 out_col;
 

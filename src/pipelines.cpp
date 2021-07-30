@@ -46,7 +46,8 @@ fn create_bone_descriptors_layout(lava::app& app)
   global_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
   global_binding->set_count(1);
 
-  // Model matrix, inverse bind poses, global transform poses, bone weights.
+  // Model matrix, inverse bind poses, global transform poses, bone weights, and
+  // keyframe.
   lava::descriptor::binding::ptr model_binding =
       lava::make_descriptor_binding(0);
   model_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
@@ -77,6 +78,12 @@ fn create_bone_descriptors_layout(lava::app& app)
   weights_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
   weights_binding->set_count(1);
 
+  lava::descriptor::binding::ptr keyframe_binding =
+      lava::make_descriptor_binding(5);
+  keyframe_binding->set_type(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+  keyframe_binding->set_stage_flags(VK_SHADER_STAGE_VERTEX_BIT);
+  keyframe_binding->set_count(1);
+
   descriptor_layout_global->add(global_binding);
   descriptor_layout_global->create(app.device);
 
@@ -85,6 +92,7 @@ fn create_bone_descriptors_layout(lava::app& app)
   descriptor_layout_object->add(keyframe_trans_cur_binding);
   descriptor_layout_object->add(keyframe_trans_next_binding);
   descriptor_layout_object->add(weights_binding);
+  descriptor_layout_object->add(keyframe_binding);
   descriptor_layout_object->create(app.device);
 
   return {descriptor_layout_global, descriptor_layout_object};
@@ -118,7 +126,7 @@ fn create_graphics_pipeline(
        lava::to_ui32(offsetof(lava::vertex, normal))},
   });
   lava::render_pass::ptr render_pass = app.shading.get_pass();
-  success(pipeline->create(render_pass->get()), "FAIL pipeline create");
+  pipeline->create(render_pass->get());
   render_pass->add_front(pipeline);
   return pipeline;
 }
