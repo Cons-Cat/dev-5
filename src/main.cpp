@@ -350,7 +350,7 @@ int main(int argc, char *argv[]) {
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
           .pBufferInfo = bone_inverse_bind_mats_buffer.get_descriptor_info(),
       };
-      VkWriteDescriptorSet const descriptor_object_bone_keyframe_trans_next{
+      VkWriteDescriptorSet const descriptor_object_bone_keyframe_trans_curr{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
           .dstSet = bone_descriptor_set_object,
           .dstBinding = 2,
@@ -358,13 +358,13 @@ int main(int argc, char *argv[]) {
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
           .pBufferInfo = bone_keyframe_cur_trans_buffer.get_descriptor_info(),
       };
-      VkWriteDescriptorSet const descriptor_object_bone_keyframe_trans_cur{
+      VkWriteDescriptorSet const descriptor_object_bone_keyframe_trans_next{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
           .dstSet = bone_descriptor_set_object,
           .dstBinding = 3,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .pBufferInfo = bone_keyframe_cur_trans_buffer.get_descriptor_info(),
+          .pBufferInfo = bone_keyframe_next_trans_buffer.get_descriptor_info(),
       };
       VkWriteDescriptorSet const descriptor_object_bone_weights{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -390,8 +390,8 @@ int main(int argc, char *argv[]) {
           descriptor_object,
           descriptor_object_bone_model,
           descriptor_object_bone_inversebind,
+          descriptor_object_bone_keyframe_trans_curr,
           descriptor_object_bone_keyframe_trans_next,
-          descriptor_object_bone_keyframe_trans_cur,
           descriptor_object_bone_weights,
           descriptor_object_bone_keyframe_time,
       });
@@ -446,14 +446,19 @@ int main(int argc, char *argv[]) {
     }
     ImGui::Separator();
     ImGui::Spacing();
+    if (ImGui::Button("Pause / Play")) animating = !animating;
+    ImGui::Text("Keyframe %zu / %.3f", current_keyframe_index - 1,
+                anim_clip.duration - 1.f);
+    float keyframe_time_remainder = fmod(current_keyframe_time, 1.f);
+    ImGui::SliderFloat("Between Frames", &keyframe_time_remainder, 0.f, 1.f);
+    if (keyframe_time_remainder < 1.f) {
+      current_keyframe_time = current_keyframe_index + keyframe_time_remainder;
+    }
     if (ImGui::Button("Back Frame"))
       current_keyframe_time = floor(current_keyframe_time - 1);
     ImGui::SameLine();
     if (ImGui::Button("Next Frame"))
       current_keyframe_time = floor(current_keyframe_time + 1);
-    if (ImGui::Button("Pause / Play")) animating = !animating;
-    ImGui::Text("Keyframe %zu / %f", current_keyframe_index - 1,
-                anim_clip.duration - 1);
     ImGui::End();
   };
 
@@ -508,8 +513,9 @@ int main(int argc, char *argv[]) {
           sizeof(anim_clip.frames[0].transforms[0]) *
               anim_clip.frames[current_keyframe_index + 1].transforms.size());
 
+      float keyframe_time_remainder = fmod(current_keyframe_time, 1.f);
       memcpy(bone_animation_keyframe_buffer.get_mapped_data(),
-             &current_keyframe_time, sizeof(float));
+             &keyframe_time_remainder, sizeof(float));
 
       bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {
         bone_pipeline_layout->bind(cmd_buf, bone_descriptor_set_global);

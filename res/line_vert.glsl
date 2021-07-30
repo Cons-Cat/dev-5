@@ -103,7 +103,9 @@ void main() {
 
     mat4 current_matrix = quaternion_to_matrix
         (global_transform_cur.quaternion);
-    current_matrix[3] = vec4(global_transform_cur.translation, 1);
+    current_matrix[3] = vec4(mix(global_transform_cur.translation,
+                                 global_transform_next.translation,
+                                 keyframe), 1);
 
     out_col = in_col;
     gl_Position = 1
