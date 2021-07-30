@@ -243,11 +243,6 @@ int main(int argc, char *argv[]) {
       bones_keyframe_next_global_transforms.size() * sizeof(Transform),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-  lava::buffer bone_weights_buffer;
-  bone_weights_buffer.create_mapped(app.device, &bones_weights,
-                                    1 * sizeof(float),
-                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
-
   lava::buffer bone_animation_keyframe_buffer;
   bone_animation_keyframe_buffer.create_mapped(
       app.device, &current_keyframe_time, 1 * sizeof(float),
@@ -366,18 +361,10 @@ int main(int argc, char *argv[]) {
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
           .pBufferInfo = bone_keyframe_next_trans_buffer.get_descriptor_info(),
       };
-      VkWriteDescriptorSet const descriptor_object_bone_weights{
-          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-          .dstSet = bone_descriptor_set_object,
-          .dstBinding = 4,
-          .descriptorCount = 1,
-          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .pBufferInfo = bone_weights_buffer.get_descriptor_info(),
-      };
       VkWriteDescriptorSet const descriptor_object_bone_keyframe_time{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
           .dstSet = bone_descriptor_set_object,
-          .dstBinding = 5,
+          .dstBinding = 4,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
           .pBufferInfo = bone_animation_keyframe_buffer.get_descriptor_info(),
@@ -392,7 +379,6 @@ int main(int argc, char *argv[]) {
           descriptor_object_bone_inversebind,
           descriptor_object_bone_keyframe_trans_curr,
           descriptor_object_bone_keyframe_trans_next,
-          descriptor_object_bone_weights,
           descriptor_object_bone_keyframe_time,
       });
 

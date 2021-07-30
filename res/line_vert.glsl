@@ -61,10 +61,7 @@ layout(set = 1, binding = 2) readonly buffer Ssbo_Object_KeyframeTrans_Cur {
 layout(set = 1, binding = 3) readonly buffer Ssbo_Object_KeyframeTrans_Next {
     Transform global_keyframetrans_next[];
 };
-layout(set = 1, binding = 4) readonly buffer Ssbo_Object_Weights {
-    float weight[];
-};
-layout(set = 1, binding = 5) readonly buffer Ssbo_Object_Keyframe {
+layout(set = 1, binding = 4) readonly buffer Ssbo_Object_Keyframe {
     float keyframe;
 };
 
