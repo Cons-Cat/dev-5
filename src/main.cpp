@@ -183,12 +183,25 @@ int main(int argc, char *argv[]) {
     for (size_t i = 0; i < current_cluster->GetControlPointIndicesCount();
          i++) {
       if (i > 4) {
+        // TODO: Grab the four greatest weights, not the first four.
         break;
       }
       current_control_point.joint_weights[i] = weights[i];
       current_control_point.joint_indices[i] = control_points[i];
     }
+    current_control_point.normalize();
     skin_control_points.push_back(current_control_point);
+  }
+
+  // Put skin data into mesh data.
+  for (size_t i = 0; i < loaded_data.vertices.size(); i++) {
+    auto current_vertex = &loaded_data.vertices[i];
+    for (size_t j = 0; j < skin_control_points.size(); j++) {
+      auto indices = skin_control_points[j].joint_indices;
+      if (std::find(std::begin(indices), std::end(indices), i)) {
+      }
+    }
+    // current_vertex->weight_indices;
   }
 
   // Load animation.
@@ -272,22 +285,22 @@ int main(int argc, char *argv[]) {
       bones_inverse_bind_mats.size() * sizeof(lava::mat4),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-  lava::buffer bone_keyframe_cur_trans_buffer;
-  bone_keyframe_cur_trans_buffer.create_mapped(
+  lava::buffer keyframe_cur_trans_buffer;
+  keyframe_cur_trans_buffer.create_mapped(
       app.device, &bones_keyframe_cur_global_transforms[0],
       bones_keyframe_cur_global_transforms.size() * sizeof(Transform),
       VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-  lava::buffer bone_keyframe_next_trans_buffer;
-  bone_keyframe_next_trans_buffer.create_mapped(
+  lava::buffer keyframe_next_trans_buffer;
+  keyframe_next_trans_buffer.create_mapped(
       app.device, &bones_keyframe_next_global_transforms[0],
       bones_keyframe_next_global_transforms.size() * sizeof(Transform),
       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
-  lava::buffer bone_animation_keyframe_buffer;
-  bone_animation_keyframe_buffer.create_mapped(
-      app.device, &current_keyframe_time, 1 * sizeof(float),
-      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+  lava::buffer animation_keyframe_buffer;
+  animation_keyframe_buffer.create_mapped(app.device, &current_keyframe_time,
+                                          1 * sizeof(float),
+                                          VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
   lava::graphics_pipeline::ptr mesh_pipeline;
   lava::descriptor::ptr mesh_descriptor_layout_global;
@@ -297,6 +310,7 @@ int main(int argc, char *argv[]) {
   VkDescriptorSet mesh_descriptor_set_global = VK_NULL_HANDLE;
   VkDescriptorSet mesh_descriptor_set_textures = VK_NULL_HANDLE;
   VkDescriptorSet mesh_descriptor_set_object = VK_NULL_HANDLE;
+  VkDescriptorSet mesh_descriptor_set_animation = VK_NULL_HANDLE;
 
   lava::graphics_pipeline::ptr bone_pipeline;
   lava::pipeline_layout::ptr bone_pipeline_layout;
@@ -317,12 +331,13 @@ int main(int argc, char *argv[]) {
     // TODO: Push descriptors to this, then update all here.
     // std::vector<VkWriteDescriptorSet> descriptor_writes;
     auto [mesh_descriptor_layout_global, mesh_descriptor_layout_textures,
-          mesh_descriptor_layout_object] = create_mesh_descriptor_layout(app);
-    // mesh_descriptor_layout = create_mesh_descriptor_layout(app);
+          mesh_descriptor_layout_object, mesh_descriptor_layout_animation] =
+        create_mesh_descriptor_layout(app);
     mesh_pipeline_layout = lava::make_pipeline_layout();
     mesh_pipeline_layout->add(mesh_descriptor_layout_global);
     mesh_pipeline_layout->add(mesh_descriptor_layout_textures);
     mesh_pipeline_layout->add(mesh_descriptor_layout_object);
+    mesh_pipeline_layout->add(mesh_descriptor_layout_animation);
     mesh_pipeline_layout->create(app.device);
     mesh_descriptor_set_global =
         mesh_descriptor_layout_global->allocate(descriptor_pool->get());
@@ -330,6 +345,8 @@ int main(int argc, char *argv[]) {
         mesh_descriptor_layout_textures->allocate(descriptor_pool->get());
     mesh_descriptor_set_object =
         mesh_descriptor_layout_object->allocate(descriptor_pool->get());
+    mesh_descriptor_set_animation =
+        mesh_descriptor_layout_animation->allocate(descriptor_pool->get());
 
     auto [bone_descriptor_layout_global, bone_descriptor_layout_object] =
         create_bone_descriptors_layout(app);
@@ -370,6 +387,38 @@ int main(int argc, char *argv[]) {
           .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
           .pBufferInfo = object_buffer.get_descriptor_info(),
       };
+      VkWriteDescriptorSet const descriptor_animation_mesh_inversebind{
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstSet = mesh_descriptor_set_animation,
+          .dstBinding = 0,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .pBufferInfo = bone_inverse_bind_mats_buffer.get_descriptor_info(),
+      };
+      VkWriteDescriptorSet const descriptor_animation_mesh_keyframe_trans_curr{
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstSet = mesh_descriptor_set_animation,
+          .dstBinding = 1,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .pBufferInfo = keyframe_cur_trans_buffer.get_descriptor_info(),
+      };
+      VkWriteDescriptorSet const descriptor_animation_mesh_keyframe_trans_next{
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstSet = mesh_descriptor_set_animation,
+          .dstBinding = 2,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .pBufferInfo = keyframe_next_trans_buffer.get_descriptor_info(),
+      };
+      VkWriteDescriptorSet const descriptor_animation_mesh_keyframe_time{
+          .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+          .dstSet = mesh_descriptor_set_animation,
+          .dstBinding = 3,
+          .descriptorCount = 1,
+          .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+          .pBufferInfo = animation_keyframe_buffer.get_descriptor_info(),
+      };
 
       VkWriteDescriptorSet const descriptor_global_bone{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -401,7 +450,7 @@ int main(int argc, char *argv[]) {
           .dstBinding = 2,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .pBufferInfo = bone_keyframe_cur_trans_buffer.get_descriptor_info(),
+          .pBufferInfo = keyframe_cur_trans_buffer.get_descriptor_info(),
       };
       VkWriteDescriptorSet const descriptor_object_bone_keyframe_trans_next{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -409,7 +458,7 @@ int main(int argc, char *argv[]) {
           .dstBinding = 3,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .pBufferInfo = bone_keyframe_next_trans_buffer.get_descriptor_info(),
+          .pBufferInfo = keyframe_next_trans_buffer.get_descriptor_info(),
       };
       VkWriteDescriptorSet const descriptor_object_bone_keyframe_time{
           .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -417,13 +466,17 @@ int main(int argc, char *argv[]) {
           .dstBinding = 4,
           .descriptorCount = 1,
           .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-          .pBufferInfo = bone_animation_keyframe_buffer.get_descriptor_info(),
+          .pBufferInfo = animation_keyframe_buffer.get_descriptor_info(),
       };
 
       app.device->vkUpdateDescriptorSets({
           descriptor_global,
           descriptor_textures,
           descriptor_object,
+          descriptor_animation_mesh_inversebind,
+          descriptor_animation_mesh_keyframe_trans_curr,
+          descriptor_animation_mesh_keyframe_trans_next,
+          descriptor_animation_mesh_keyframe_time,
           descriptor_global_bone,
           descriptor_object_bone_model,
           descriptor_object_bone_inversebind,
@@ -559,21 +612,22 @@ int main(int argc, char *argv[]) {
         mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set_global);
         mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set_textures, 1);
         mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set_object, 2);
+        mesh_pipeline_layout->bind(cmd_buf, mesh_descriptor_set_animation, 3);
         made_mesh->bind_draw(cmd_buf);
       };
     } else if (render_mode == skeleton) {
-      memcpy(bone_keyframe_cur_trans_buffer.get_mapped_data(),
+      memcpy(keyframe_cur_trans_buffer.get_mapped_data(),
              &anim_clip.frames[current_keyframe_index].transforms[0],
              sizeof(anim_clip.frames[0].transforms[0]) *
                  anim_clip.frames[current_keyframe_index].transforms.size());
       memcpy(
-          bone_keyframe_next_trans_buffer.get_mapped_data(),
+          keyframe_next_trans_buffer.get_mapped_data(),
           &anim_clip.frames[current_keyframe_index + 1].transforms[0],
           sizeof(anim_clip.frames[0].transforms[0]) *
               anim_clip.frames[current_keyframe_index + 1].transforms.size());
 
       float keyframe_time_remainder = fmod(current_keyframe_time, 1.f);
-      memcpy(bone_animation_keyframe_buffer.get_mapped_data(),
+      memcpy(animation_keyframe_buffer.get_mapped_data(),
              &keyframe_time_remainder, sizeof(float));
 
       bone_pipeline->on_process = [&](VkCommandBuffer cmd_buf) {

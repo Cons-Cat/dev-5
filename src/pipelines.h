@@ -6,7 +6,7 @@
 
 fn create_mesh_descriptor_layout(lava::app& app)
     ->std::tuple<lava::descriptor::ptr, lava::descriptor::ptr,
-                 lava::descriptor::ptr>;
+                 lava::descriptor::ptr, lava::descriptor::ptr>;
 
 fn create_bone_descriptors_layout(lava::app& app)
     ->std::tuple<lava::descriptor::ptr, lava::descriptor::ptr>;
