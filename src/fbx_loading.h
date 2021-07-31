@@ -20,6 +20,8 @@ fn read_mesh(FbxNode *node)->lava::mesh_template_data<skin_vertex>;
 fn find_fbx_mesh(FbxNode *node)
     ->std::optional<lava::mesh_template_data<skin_vertex>>;
 
+fn find_fbx_skin(FbxNode *node)->FbxSkin *;
+
 // TODO: Is the matrix here redundant?
 typedef struct {
   FbxNode *node;

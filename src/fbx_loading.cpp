@@ -13,7 +13,6 @@ fn read_uv(FbxMesh *mesh, int texture_uv_index)->lava::v2 {
 fn read_mesh(FbxNode *node)->lava::mesh_template_data<skin_vertex> {
   lava::mesh_template_data<skin_vertex> output;
   FbxMesh *mesh = node->GetMesh();
-  FbxSkin *skin = (FbxSkin *)mesh->GetDeformer(0, FbxDeformer::eSkin);
   size_t tri_count = mesh->GetPolygonCount();
   FbxVector4 *ctrl_points = mesh->GetControlPoints();
   for (size_t i = 0; i < tri_count; i++) {
@@ -69,6 +68,24 @@ fn find_fbx_mesh(FbxNode *node)
     }
   }
   return std::nullopt;
+}
+
+fn find_fbx_skin(FbxNode *node)->FbxSkin * {
+  FbxNodeAttribute *attribute = node->GetNodeAttribute();
+  if (attribute != nullptr) {
+    if (attribute->GetAttributeType() == FbxNodeAttribute::eMesh) {
+      FbxMesh *mesh = node->GetMesh();
+      FbxSkin *skin = (FbxSkin *)mesh->GetDeformer(0, FbxDeformer::eSkin);
+      return skin;
+    }
+  }
+  for (size_t i = 0; i < node->GetChildCount(); i++) {
+    auto maybe_skin = find_fbx_skin(node->GetChild(i));
+    if (maybe_skin) {
+      return maybe_skin;
+    }
+  }
+  return nullptr;
 }
 
 void find_fbx_poses(FbxNode *node, std::vector<FbxPose *> *poses)

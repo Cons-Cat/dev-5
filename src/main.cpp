@@ -39,6 +39,7 @@ int main(int argc, char *argv[]) {
   FbxNode *root_node = scene->GetRootNode();
   lava::mesh_template_data<skin_vertex> loaded_data =
       find_fbx_mesh(root_node).value();
+  FbxSkin *skin = find_fbx_skin(root_node);
 
   // Load the skeleton.
   std::vector<FbxPose *> poses;
@@ -150,6 +151,46 @@ int main(int argc, char *argv[]) {
   bones_mesh->add_data(bone_mesh_data);
   bones_mesh->create(app.device);
 
+  // Skinning clusters
+  struct skin_control_point {
+    std::array<int, 4> joint_indices;
+    std::array<float, 4> joint_weights{0, 0, 0, 0};
+    fn normalize() {
+      float weight_sum = 0;
+      for (auto &weight : joint_weights) {
+        weight_sum += weight;
+      }
+      for (auto &weight : joint_weights) {
+        weight /= weight_sum;
+      }
+    }
+  };
+  std::vector<skin_control_point> skin_control_points;
+
+  for (size_t i = 0; i < skin->GetClusterCount(); i++) {
+    FbxCluster *current_cluster = skin->GetCluster(i);
+    FbxNode *current_node = current_cluster->GetLink();
+    double *weights = current_cluster->GetControlPointWeights();
+    int *control_points = current_cluster->GetControlPointIndices();
+    int joint_index;
+    for (size_t i = 0; i < joints.size(); i++) {
+      if (joints[i].node == current_node) {
+        joint_index = i;
+        break;
+      }
+    }
+    skin_control_point current_control_point;
+    for (size_t i = 0; i < current_cluster->GetControlPointIndicesCount();
+         i++) {
+      if (i > 4) {
+        break;
+      }
+      current_control_point.joint_weights[i] = weights[i];
+      current_control_point.joint_indices[i] = control_points[i];
+    }
+    skin_control_points.push_back(current_control_point);
+  }
+
   // Load animation.
   auto fps = FbxTime::EMode::eFrames24;
   FbxAnimStack *anim_stack = scene->GetCurrentAnimationStack();
@@ -158,8 +199,8 @@ int main(int argc, char *argv[]) {
   AnimationClip anim_clip{};
   anim_clip.duration = real_time.GetFrameCount(fps);
 
-  // Make an array of joint transforms for every keyframe in the animation clip.
-  // Start at 1, because 0 is the bind pose frame.
+  // Make an array of joint transforms for every keyframe in the animation
+  // clip. Start at 1, because 0 is the bind pose frame.
   for (double i = 1; i < anim_clip.duration; i++) {
     Keyframe current_keyframe;
     real_time.SetFrame(i, fps);
