@@ -98,6 +98,9 @@ void main() {
         }
     }
 
+    vec4 quaternion = mix(global_transform_cur.quaternion,
+                          global_transform_next.quaternion,
+                          keyframe);
     mat4 current_matrix = quaternion_to_matrix
         (global_transform_cur.quaternion);
     current_matrix[3] = vec4(mix(global_transform_cur.translation,
