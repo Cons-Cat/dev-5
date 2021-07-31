@@ -6,6 +6,41 @@ struct Transform {
     vec4 quaternion;
 };
 
+vec4 normalize_quaternion(vec4 in_quat) {
+    vec4 out_quat;
+    float norm = sqrt(in_quat.x * in_quat.x + in_quat.y * in_quat.y +
+                      in_quat.z * in_quat.z + in_quat.w * in_quat.w);
+    out_quat.x = in_quat.x / norm;
+    out_quat.y = in_quat.y / norm;
+    out_quat.z = in_quat.z / norm;
+    out_quat.w = in_quat.w / norm;
+    return out_quat;
+}
+
+mat4 quaternion_to_matrix(vec4 quat) {
+    mat4 mat = mat4(0);
+
+    float x = quat.x, y = quat.y, z = quat.z, w = quat.w;
+    float x2 = x + x, y2 = y + y, z2 = z + z;
+    float xx = x * x2, xy = x * y2, xz = x * z2;
+    float yy = y * y2, yz = y * z2, zz = z * z2;
+    float wx = w * x2, wy = w * y2, wz = w * z2;
+
+    mat[0][0] = 1.0 - (yy + zz);
+    mat[0][1] = xy - wz;
+    mat[0][2] = xz + wy;
+    mat[1][0] = xy + wz;
+    mat[1][1] = 1.0 - (xx + zz);
+    mat[1][2] = yz - wx;
+    mat[2][0] = xz - wy;
+    mat[2][1] = yz + wx;
+    mat[2][2] = 1.0 - (xx + yy);
+    mat[3][3] = 1.0;
+
+    return mat;
+}
+
+
 layout(location = 0) in vec3 in_pos;
 layout(location = 1) in vec4 in_col;
 layout(location = 2) in vec2 in_uv;
@@ -59,7 +94,34 @@ void main() {
         }
     }
 
+    Transform global_transform_cur;
+    for (int i = 0; i < global_keyframetrans_cur.length(); i++) {
+        if (i == idx) {
+            global_transform_cur = global_keyframetrans_cur[i];
+            break;
+        }
+    }
+
+    Transform global_transform_next;
+    for (int i = 0; i < global_keyframetrans_next.length(); i++) {
+        if (i == idx) {
+            global_transform_next = global_keyframetrans_next[i];
+            break;
+        }
+    }
+
+    vec4 quaternion = mix(global_transform_cur.quaternion,
+                          global_transform_next.quaternion,
+                          keyframe);
+    mat4 current_matrix = quaternion_to_matrix
+        (global_transform_cur.quaternion);
+    current_matrix[3] = vec4(mix(global_transform_cur.translation,
+                                 global_transform_next.translation,
+                                 keyframe), 1);
+
+
     vec4 vert_pos_inv = 1 *
+        current_matrix *
         inverse_bind_cur *
         ubo_obj.model *
         vec4(in_pos.x, in_pos.y, in_pos.z, 1.0);
